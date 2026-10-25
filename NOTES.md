@@ -1,5 +1,34 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
+## UPDATE 2026-10-25 — experimental Galaxy A24 branch
+
+This checkout is a separate `a24-port` worktree based on ios-sweet commit `45263be`; the original `main` checkout is untouched. The user requested an actual A24 port attempt. Device writes are not authorized by that request; this milestone is source-only.
+
+### Observed A24 platform data
+
+- Download Mode PIT was read successfully with Heimdall `print-pit --no-reboot`; the device exposed `boot`, `vendor_boot`, `dtbo`, `vbmeta*`, `super` and `userdata`. See the separate Codex workspace report; do not add PIT/device dumps to this repository.
+- Live FDT identifies `MT6789V/CD`, six Cortex-A55 + two Cortex-A76, PSCI `method = "smc"`, GICv3 distributor `0x0c000000`, redistributor `0x0c040000` (region `0x200000`), timer virtual PPI 27 and physical PPI 30.
+- Live FDT identifies MTK UFSHCI at `0x11270000`, DSI at `0x14013000`, reserved framebuffer `0xfe144000` size `0x1ebb000`, mode `1080x2340`, and Goodix Berlin touchscreen at I²C `0x5d` (`gt9895_a24.bin`). These are observations from the running device tree; framebuffer format/stride and direct controller programming are not validated.
+- The captured boot image is Android header v4 with Linux kernel `5.10.226-android12-9`. It is not in this Git worktree.
+
+### Source changes in progress
+
+- Added `shim/platform_a24.h` with the confirmed SoC-level addresses/interrupts plus explicitly provisional framebuffer geometry.
+- Parameterized the existing shim's GIC, timer, framebuffer and UFS base constants while preserving Sweet defaults.
+- A24 panic reset uses PSCI system reset instead of Qualcomm IMEM/PSHOLD registers.
+- The A24 diagnostic path skips the Qualcomm-inherited UFS probe until MTK host initialization is ported, then continues into MMU/PSCI/GIC diagnostics.
+- Added `shim/build-a24.sh` to produce only a freestanding shim ELF and Linux `Image`; it does not package an Odin/AP image or flash a device.
+- Built successfully in WSL with GCC 13.3.0: `a24-shim.elf` is ELF64/AArch64 (24,664 bytes), `a24-shim.Image` is 249,856 bytes, Linux Image magic `ARMd`, `image_size=0x3d000`, and no unresolved symbols. The script's absolute-relocation guard passed. This is only a compile result; no A24 boot was attempted.
+
+### Blockers / next exact actions
+
+1. Reverse-engineer Samsung boot-image v4 handoff and vendor_boot packaging from stock artifacts; make any packager produce an offline artifact only. Samsung/Heimdall currently provide only a Download/Odin path; there is no verified A24 RAM-only boot command.
+2. Establish framebuffer format/stride and whether the reserved framebuffer survives Samsung's kernel handoff; verify 16K translation-granule support before relying on Sweet's XNU MMU setup.
+3. Port MTK UFS controller initialization and XNU storage, then display/touch/power drivers. The Sweet Goodix GT9896 protocol is only a starting reference; A24 uses MTK I²C and GT9895.
+4. Before any device boot, complete the recovery plan and get a separate explicit user confirmation for any partition write.
+
+No A24 partition has been written. No device boot has been attempted.
+
 ## Agent handoff / active work (2026-10-15, latest)
 
 ### >>> UPDATE 2026-10-18 (read first, then the 10-17 handoff below) <<<

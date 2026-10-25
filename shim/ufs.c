@@ -12,8 +12,9 @@
 #include <stdint.h>
 #include "console.h"
 #include "ufs.h"
+#include "platform.h"
 
-#define UFS_BASE	0x01d84000UL	/* ufshc@1d84000, sweet live FDT */
+#define UFS_BASE	PLAT_UFS_BASE
 
 #define REG_CAP		0x00
 #define REG_VER		0x08

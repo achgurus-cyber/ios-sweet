@@ -1,25 +1,22 @@
-/*
- * Milestone 2: one boot answers the questions that decide the XNU port.
- *   - CPU feature registers (16K granule, GIC sysreg interface)
- *   - PSCI/SMCCC version and which PSCI calls the Qualcomm TZ offers
- *   - SMP: PSCI CPU_ON for the 7 secondaries, each reports its MPIDR
- *   - GICv3 Group 1 IRQ from the virtual timer (INTID 19 on Qualcomm)
- * Any unexpected exception paints a blue panic screen.
- */
+/* Early-boot diagnostics shared by Sweet and the experimental A24 config.
+ * Platform MMIO addresses and timer IDs are selected by platform.h. */
 #include <stdint.h>
 #include "console.h"
 #include "mmu.h"
 #include "loader.h"
 #include "ufs.h"
+#include "platform.h"
 
+#ifndef PLATFORM_A24
 #define IMEM_RESTART_REASON	0x146aa65cUL	/* qcom,msm-imem restart_reason@65c */
 #define RESTART_BOOTLOADER	0x77665500U
 #define PSHOLD			0x0c264000UL
+#endif
 
-#define GICD_BASE		0x17a00000UL
-#define GICR_BASE		0x17a60000UL
-#define GICR_SIZE		0x100000UL
-#define GICR_PE_SIZE		0x20000UL
+#define GICD_BASE		PLAT_GICD_BASE
+#define GICR_BASE		PLAT_GICR_BASE
+#define GICR_SIZE		PLAT_GICR_SIZE
+#define GICR_PE_SIZE		PLAT_GICR_PE_SIZE
 #define GICR_TYPER		0x08
 #define GICR_WAKER		0x14
 #define GICR_SGI		0x10000
@@ -30,9 +27,9 @@
 #define GICR_ISPENDR0		(GICR_SGI + 0x200)
 #define GICR_ISACTIVER0		(GICR_SGI + 0x300)
 #define GICR_ICFGR1		(GICR_SGI + 0xc04)
-#define VTIMER_INTID		19	/* DT: <GIC_PPI 3 ...>, not the usual 27 */
-#define PTIMER_INTID		18	/* DT: <GIC_PPI 2 ...> */
-#define SGI_INTID		1
+#define VTIMER_INTID		PLAT_VTIMER_INTID
+#define PTIMER_INTID		PLAT_PTIMER_INTID
+#define SGI_INTID		PLAT_SGI_INTID
 
 #define PSCI_VERSION		0x84000000UL
 #define PSCI_CPU_SUSPEND	0xc4000001UL
@@ -45,7 +42,7 @@
 #define PSCI_SYSTEM_RESET2	0xc4000012UL
 #define SMCCC_VERSION		0x80000000UL
 
-#define NR_CPUS			8
+#define NR_CPUS			PLAT_NR_CPUS
 
 #define rsr(r) ({ uint64_t _v; __asm__ volatile("mrs %0, " r : "=r"(_v)); _v; })
 #define wsr(r, v) __asm__ volatile("msr " r ", %0" : : "r"((uint64_t)(v)))
@@ -106,10 +103,15 @@ static void __attribute__((noreturn)) reset(unsigned after_s)
 	con_skip();
 	con_str("RESET", after_s > 20 ? "in 40s" : "in 20s");
 	delay_ms(after_s * 1000);
+#ifdef PLATFORM_A24
+	/* The Qualcomm IMEM/PSHOLD addresses below do not exist on MT6789. */
+	smc(PSCI_SYSTEM_RESET, 0, 0, 0);
+#else
 	wr32(IMEM_RESTART_REASON, RESTART_BOOTLOADER);
 	__asm__ volatile("dsb sy" ::: "memory");
 	smc(PSCI_SYSTEM_RESET, 0, 0, 0);
 	wr32(PSHOLD, 0);
+#endif
 	for (;;)
 		__asm__ volatile("wfe");
 }
@@ -367,7 +369,8 @@ static uint64_t ticks_mem(void)
 
 static uint32_t to_us(uint64_t ticks)
 {
-	return ticks * 10 / 192;	/* 19.2 MHz */
+	uint64_t hz = rsr("cntfrq_el0");
+	return hz ? (uint32_t)(ticks * 1000000 / hz) : 0;
 }
 
 void shim_main(uint64_t dtb)
@@ -377,13 +380,20 @@ void shim_main(uint64_t dtb)
 	/* An xnu payload in the ramdisk means: boot it (MMU stays off). */
 	stage = "loader";
 	con_clear(RED);
+#ifdef PLATFORM_A24
+	con_str("SHIM", "A24 experimental xnu loader");
+#else
 	con_str("SHIM", "sweet milestone 4: xnu loader");
+#endif
 	con_skip();
 	const char *why = loader_boot(dtb);
 	con_str("LOADER", why);
 	con_skip();
 
-	/* No payload: probe the internal UFS while the MMU is still off. */
+	/* No payload: the Qualcomm build can probe its inherited UFS host. */
+#ifdef PLATFORM_A24
+	con_str("UFS", "A24 probe disabled: MTK host bring-up is unported");
+#else
 	stage = "ufs";
 	test_ufs();
 	con_skip();
@@ -391,6 +401,7 @@ void shim_main(uint64_t dtb)
 	con_str("UFS", "probe done, reset in ~3 min");
 	delay_ms(180000);
 	reset(20);
+#endif
 
 	stage = "fill off";
 	uint64_t fill_off = ticks_fill(RED);
@@ -405,7 +416,11 @@ void shim_main(uint64_t dtb)
 	if (rc)
 		con_clear(RED);
 
+#ifdef PLATFORM_A24
+	con_str("SHIM", "A24 MMU/PSCI/GIC diagnostic");
+#else
 	con_str("SHIM", "sweet milestone 3");
+#endif
 	con_skip();
 	con_hex2("DTB", "at=", dtb, "magic=", dtb ? __builtin_bswap32(rd32(dtb)) : 0);
 	con_hex2("IMAGE", "lo=", mi.img_lo, "hi=", mi.img_hi);
