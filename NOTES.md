@@ -19,10 +19,12 @@ This checkout is a separate `a24-port` worktree based on ios-sweet commit `45263
 - The A24 diagnostic path skips the Qualcomm-inherited UFS probe until MTK host initialization is ported, then continues into MMU/PSCI/GIC diagnostics.
 - Added `shim/build-a24.sh` to produce only a freestanding shim ELF and Linux `Image`; it does not package an Odin/AP image or flash a device.
 - Built successfully in WSL with GCC 13.3.0: `a24-shim.elf` is ELF64/AArch64 (24,664 bytes), `a24-shim.Image` is 249,856 bytes, Linux Image magic `ARMd`, `image_size=0x3d000`, and no unresolved symbols. The script's absolute-relocation guard passed. This is only a compile result; no A24 boot was attempted.
+- Added `shim/package-a24-diagnostic.sh`; with AOSP `mkbootimg.py` commit `d2bb0af`, it creates an offline boot-header-v4 diagnostic image. AOSP `unpack_bootimg.py` parsed it as `ANDROID!`, header v4, 249,856-byte kernel, 88-byte gzip/newc ramdisk, OS metadata 12.0.0 / 2025-08. The generated image has no GKI boot signature (size 0), while the captured stock boot image had 4096 bytes. A24 acceptance of that image and its interaction with AVB/vendor_boot remain unverified. Image SHA-256: `88e7ddb973e52be8e649f54c8df98b9f26ef50c5516483f8f1041a3ffe0ad3c9`.
+- AOSP format references: [boot image header v4](https://source.android.com/docs/core/architecture/bootloader/boot-image-header) and [AOSP mkbootimg sources](https://android.googlesource.com/platform/system/tools/mkbootimg/).
 
 ### Blockers / next exact actions
 
-1. Reverse-engineer Samsung boot-image v4 handoff and vendor_boot packaging from stock artifacts; make any packager produce an offline artifact only. Samsung/Heimdall currently provide only a Download/Odin path; there is no verified A24 RAM-only boot command.
+1. Obtain/read the matching stock `vendor_boot` artifact and establish the A24 bootloader/AVB acceptance rules for an unlocked custom v4 image; no RAM-only boot command is verified.
 2. Establish framebuffer format/stride and whether the reserved framebuffer survives Samsung's kernel handoff; verify 16K translation-granule support before relying on Sweet's XNU MMU setup.
 3. Port MTK UFS controller initialization and XNU storage, then display/touch/power drivers. The Sweet Goodix GT9896 protocol is only a starting reference; A24 uses MTK I²C and GT9895.
 4. Before any device boot, complete the recovery plan and get a separate explicit user confirmation for any partition write.
