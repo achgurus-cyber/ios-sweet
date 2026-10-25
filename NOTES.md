@@ -4,9 +4,12 @@
 
 This checkout is a separate `a24-port` worktree based on ios-sweet commit `45263be`; the original `main` checkout is untouched. The user requested an actual A24 port attempt. Device writes are not authorized by that request; this milestone is source-only.
 
+Completed local commits: `28e9778` (initial MT6789 shim profile), `21ac183` (offline diagnostic boot-v4 packager). Current source branch: `a24-port`.
+
 ### Observed A24 platform data
 
 - Download Mode PIT was read successfully with Heimdall `print-pit --no-reboot`; the device exposed `boot`, `vendor_boot`, `dtbo`, `vbmeta*`, `super` and `userdata`. See the separate Codex workspace report; do not add PIT/device dumps to this repository.
+- The user's Download Mode photo shows `OEM LOCK: OFF (0)`, `KG STATUS: COMPLETED (0)`, and `WARRANTY VOID: 0x1`; custom boot acceptance is still unverified and the warranty flag is already tripped.
 - Live FDT identifies `MT6789V/CD`, six Cortex-A55 + two Cortex-A76, PSCI `method = "smc"`, GICv3 distributor `0x0c000000`, redistributor `0x0c040000` (region `0x200000`), timer virtual PPI 27 and physical PPI 30.
 - Live FDT identifies MTK UFSHCI at `0x11270000`, DSI at `0x14013000`, reserved framebuffer `0xfe144000` size `0x1ebb000`, mode `1080x2340`, and Goodix Berlin touchscreen at I²C `0x5d` (`gt9895_a24.bin`). These are observations from the running device tree; framebuffer format/stride and direct controller programming are not validated.
 - The captured boot image is Android header v4 with Linux kernel `5.10.226-android12-9`. It is not in this Git worktree.
