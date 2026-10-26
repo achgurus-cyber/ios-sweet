@@ -182,12 +182,12 @@ jobs:
                   want = [
                       "_start_first_cpu",
                       "_arm_init",
-                      "_pe_init_platform",
+                      "_PE_init_platform",
                       "_sweet_hfs_register",
                       "_sweet_amfi_policy_register",
                       "_sweet_vtimer_intid",
-                      "__ZN19SweetPlatformExpert4initEP12OSDictionary",
-                      "__ZN8SweetCPU4initEP12OSDictionary",
+                      "__ZN19SweetPlatformExpert5startEP9IOService",
+                      "__ZN8SweetCPU5startEP9IOService",
                   ]
                   found = {}
                   for line in nm_all.splitlines():
@@ -196,11 +196,13 @@ jobs:
                           found[parts[2]] = f"{parts[0]} ({parts[1]})"
                   for sym in want:
                       lines.append(f"sym {sym}: {found.get(sym, 'MISSING')}")
-                  segs, entry, fixoff, fixsz = mkpayload.parse_macho(bytes(data))
-                  nfix = mkpayload.apply_chained_fixups(data, segs, fixoff, fixsz)
-                  lines.append(f"entry=0x{entry:x} chained_fixups_applied={nfix}")
-                  for name, vm, vmend, foff, fsz in segs:
-                      lines.append(f"seg {name:16s} vm=0x{vm:016x}..0x{vmend:016x} foff=0x{foff:x} fsz=0x{fsz:x}")
+                  m = mkpayload.parse_macho(bytes(data))
+                  nfix = mkpayload.apply_chained_fixups(data, m)
+                  lines.append(f"entry=0x{m['entry']:x} chained_fixups_applied={nfix}")
+                  for seg in m["segs"]:
+                      vm = seg["vmaddr"]
+                      vmend = vm + seg["vmsize"]
+                      lines.append(f"seg {seg['name']:16s} vm=0x{vm:016x}..0x{vmend:016x} foff=0x{seg['fileoff']:x} fsz=0x{seg['filesize']:x}")
           except Exception:
               lines.append("ERROR:\n" + traceback.format_exc())
           report = "\n".join(lines)
