@@ -91,9 +91,11 @@ jobs:
           clean_lines = [ansi.sub("", line) for line in lines]
           matches = []
           for line in lines:
-              clean = ansi.sub("", line)
+              clean = ansi.sub("", line).strip()
+              if clean.startswith("[warning] Skipping patch") or clean.startswith("error: "):
+                  continue
               if re.search(r"^.*?:\d+:\d+(?::\d+)?: (?:fatal )?error:\s", clean) or re.search(r"^(?:ld|clang): error:", clean) or re.search(r"^Undefined symbols for architecture", clean):
-                  matches.append(line.strip())
+                  matches.append(clean)
           summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
           with summary.open("a") as out:
               out.write(f"### XNU build diagnostics\n\nFound {len(matches)} compiler/linker error lines.\n\n")
@@ -102,9 +104,10 @@ jobs:
               out.write("\n### Build log tail\n\n```text\n")
               out.write("\n".join(lines[-50:]))
               out.write("\n```\n")
-          for line in matches[:100]:
-              safe = line.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-              print(f"::error title=XNU compiler diagnostic::{safe}")
+          if matches:
+              combined = "\n".join(matches[:40])
+              safe = combined.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title=XNU compiler diagnostics ({len(matches)})::{safe}")
           tail = "\n".join(clean_lines[-35:])
           safe = tail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
           print(f"::notice title=XNU build log tail::{safe}")

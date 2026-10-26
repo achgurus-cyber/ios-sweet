@@ -1,2 +1,4 @@
 shim/build-a24.sh text eol=lf
 shim/package-a24-diagnostic.sh text eol=lf
+xnu/patches/*.patch text eol=lf
+xnu/patches/*.sh text eol=lf
