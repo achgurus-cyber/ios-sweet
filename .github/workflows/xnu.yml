@@ -158,47 +158,51 @@ jobs:
           from pathlib import Path
           import subprocess
           import sys
+          import traceback
           sys.path.insert(0, "tools")
-          import mkpayload
 
-          out = Path("out")
           lines = []
-          sums = out / "SHA256SUMS"
-          if sums.exists():
-              lines.append("SHA256SUMS:\n" + sums.read_text().strip())
-          for k in sorted(out.glob("kernel.*")):
-              if k.suffix in (".dSYM", ".unstripped"):
-                  continue
-              data = bytearray(k.read_bytes())
-              lines.append(f"file={k.name} size={len(data)}")
-              for cmd in (["file", str(k)], ["lipo", "-info", str(k)]):
-                  res = subprocess.run(cmd, capture_output=True, text=True)
-                  lines.append(res.stdout.strip())
-              undef = subprocess.run(["nm", "-u", str(k)], capture_output=True, text=True).stdout.strip().splitlines()
-              lines.append(f"undefined_symbols={len(undef)}")
-              nm_all = subprocess.run(["nm", str(k)], capture_output=True, text=True).stdout
-              want = [
-                  "_start_first_cpu",
-                  "_arm_init",
-                  "_pe_init_platform",
-                  "_sweet_hfs_register",
-                  "_sweet_amfi_policy_register",
-                  "_sweet_vtimer_intid",
-                  "__ZN19SweetPlatformExpert4initEP12OSDictionary",
-                  "__ZN8SweetCPU4initEP12OSDictionary",
-              ]
-              found = {}
-              for line in nm_all.splitlines():
-                  parts = line.split()
-                  if len(parts) >= 3 and parts[2] in want:
-                      found[parts[2]] = f"{parts[0]} ({parts[1]})"
-              for sym in want:
-                  lines.append(f"sym {sym}: {found.get(sym, 'MISSING')}")
-              segs, entry, fixoff, fixsz = mkpayload.parse_macho(bytes(data))
-              nfix = mkpayload.apply_chained_fixups(data, segs, fixoff, fixsz)
-              lines.append(f"entry=0x{entry:x} chained_fixups_applied={nfix}")
-              for name, vm, vmend, foff, fsz in segs:
-                  lines.append(f"seg {name:16s} vm=0x{vm:016x}..0x{vmend:016x} foff=0x{foff:x} fsz=0x{fsz:x}")
+          try:
+              import mkpayload
+              out = Path("out")
+              sums = out / "SHA256SUMS"
+              if sums.exists():
+                  lines.append("SHA256SUMS:\n" + sums.read_text().strip())
+              for k in sorted(out.glob("kernel.*")):
+                  if k.is_dir() or k.suffix in (".dSYM", ".unstripped"):
+                      continue
+                  data = bytearray(k.read_bytes())
+                  lines.append(f"file={k.name} size={len(data)}")
+                  for cmd in (["file", str(k)], ["lipo", "-info", str(k)]):
+                      res = subprocess.run(cmd, capture_output=True, text=True)
+                      lines.append(res.stdout.strip())
+                  undef = subprocess.run(["nm", "-u", str(k)], capture_output=True, text=True).stdout.strip().splitlines()
+                  lines.append(f"undefined_symbols={len(undef)}")
+                  nm_all = subprocess.run(["nm", str(k)], capture_output=True, text=True).stdout
+                  want = [
+                      "_start_first_cpu",
+                      "_arm_init",
+                      "_pe_init_platform",
+                      "_sweet_hfs_register",
+                      "_sweet_amfi_policy_register",
+                      "_sweet_vtimer_intid",
+                      "__ZN19SweetPlatformExpert4initEP12OSDictionary",
+                      "__ZN8SweetCPU4initEP12OSDictionary",
+                  ]
+                  found = {}
+                  for line in nm_all.splitlines():
+                      parts = line.split()
+                      if len(parts) >= 3 and parts[2] in want:
+                          found[parts[2]] = f"{parts[0]} ({parts[1]})"
+                  for sym in want:
+                      lines.append(f"sym {sym}: {found.get(sym, 'MISSING')}")
+                  segs, entry, fixoff, fixsz = mkpayload.parse_macho(bytes(data))
+                  nfix = mkpayload.apply_chained_fixups(data, segs, fixoff, fixsz)
+                  lines.append(f"entry=0x{entry:x} chained_fixups_applied={nfix}")
+                  for name, vm, vmend, foff, fsz in segs:
+                      lines.append(f"seg {name:16s} vm=0x{vm:016x}..0x{vmend:016x} foff=0x{foff:x} fsz=0x{fsz:x}")
+          except Exception:
+              lines.append("ERROR:\n" + traceback.format_exc())
           report = "\n".join(lines)
           print(report)
           safe = report.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
