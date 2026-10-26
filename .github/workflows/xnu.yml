@@ -96,9 +96,15 @@ jobs:
               out.write(f"### XNU build diagnostics\n\nFound {len(matches)} compiler/linker error lines.\n\n")
               for line in matches[:100]:
                   out.write("- `" + line.replace("`", "'") + "`\n")
+              out.write("\n### Build log tail\n\n```text\n")
+              out.write("\n".join(lines[-50:]))
+              out.write("\n```\n")
           for line in matches[:100]:
               safe = line.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
               print(f"::error title=XNU compiler diagnostic::{safe}")
+          for line in lines[-35:]:
+              safe = line.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::notice title=XNU build log tail::{safe}")
           PY
 
       - name: Package build tree for local compiles
