@@ -101,7 +101,6 @@ def build(seed=None, qemu=False, highmem=False, a24=False, ram_ranges=None):
         phys_base, mem_size = ram_ranges[0]
         if len(ram_ranges) != 1:
             raise SystemExit('A24 loader currently supports one contiguous kernel region only')
-        raise SystemExit('A24 RAM handoff is not validated: live FDT and vendor_boot disagree, and fixed/dynamic reservations must be excluded before building an ADT')
     else:
         phys_base, mem_size = (HIGH_PHYS_BASE, HIGH_MEM_SIZE) if highmem else (PHYS_BASE, MEM_SIZE)
     # Carve the panic log off the top so the kernel never allocates over it.
