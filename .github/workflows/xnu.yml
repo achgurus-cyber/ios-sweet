@@ -72,7 +72,34 @@ jobs:
         env:
           # keep going after errors so one run reports every compile failure
           MAKEFLAGS: ${{ inputs.keep_going == 'false' && '' || '-k' }}
-        run: bash build.sh
+        run: set -o pipefail; bash build.sh 2>&1 | tee build.log
+
+      - name: Summarize compiler errors
+        if: always()
+        working-directory: dxb
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          log = Path("build.log")
+          if not log.exists():
+              raise SystemExit(0)
+          lines = log.read_text(errors="replace").splitlines()
+          matches = []
+          for line in lines:
+              if re.search(r"\b(?:fatal )?error:\s", line) or re.search(r"\bundefined symbols?\b", line, re.I):
+                  matches.append(line.strip())
+          summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          with summary.open("a") as out:
+              out.write(f"### XNU build diagnostics\n\nFound {len(matches)} compiler/linker error lines.\n\n")
+              for line in matches[:100]:
+                  out.write("- `" + line.replace("`", "'") + "`\n")
+          for line in matches[:100]:
+              safe = line.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title=XNU compiler diagnostic::{safe}")
+          PY
 
       - name: Package build tree for local compiles
         if: always()
