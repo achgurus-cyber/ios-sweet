@@ -36,6 +36,7 @@ jobs:
   build:
     # macos-14 still ships Xcode 15.x: its iig matches the xnu-8796 IORPC ABI
     # (Xcode 16's iig emits IORPC.kernelContent, which this xnu lacks)
+    # Keep this image: Xcode 15.x iig matches the xnu-8796 IORPC ABI; macos-15 defaults to incompatible Xcode 16.
     runs-on: macos-14
     timeout-minutes: 120
     steps:
