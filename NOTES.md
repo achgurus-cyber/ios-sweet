@@ -1,5 +1,24 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
+## UPDATE 2026-10-27 — MILESTONE: First XNU A24 Host-Side Boot to Userspace PID 1
+
+- **Host Testing Milestone (`9b12e80`):**
+  - Updated `tools/mkadt.py` to allow combining `--a24` and `--qemu`, enabling QEMU virt host-side execution of the A24 kernel with the A24 4 GiB+ memory layout (`0x100000000:0x91c80000`), A24/iPhone X device identity (`D22AP|iPhone10,3|samsung,a24|mediatek,MT6789|AppleARM`), and QEMU virt-mapped GICv3 (`0x08000000`/`0x080a0000`) and framebuffer console (`sweet-fbcon` at `0x9c000000`).
+  - Generated `ios-a24-port/out-a24-qemu.adt` (4,080 bytes) and packaged `a24-qemu-payload.bin`.
+  - Built static, position-independent userspace init binary `tools/sweet-init.S` using Clang 18 (`-target arm64-apple-ios16.0`) and packaged with `tools/mkinit.py` into a signed ad-hoc static Mach-O executable (16,635 bytes, `flags:<NOUNDEFS>`).
+  - Packaged ramdisk payload `/tmp/a24-ramdisk-payload.bin` (16,585,808 bytes, `rd=md0`).
+  - Executed in QEMU aarch64 (`tools/qemu-sweet.py --secs 120`):
+    1. Kernel started at EL1 via `_start_first_cpu` (`0x10148c488`), enabled MMU, transitioned to high VA (`0xfffffe00...`).
+    2. Memory subsystem and zones initialized (`pgzalloc`, `map VM 19G`, `map RO 6G`, `map DATA 25G`).
+    3. Device Tree Platform Expert registered, AppleKeyStore registered, IOWatchdog registered, IOCoreSurfaceRoot registered.
+    4. CPU 0 came alive (`mpidr=0x0 EL1 IRQs=1 SGI1 OK`).
+    5. BSD autoconf initialized network interfaces (`lo0`, `gif0`, `stf0`), Skywalk self-tests PASSED.
+    6. Memory device attached: `Added memory device md0/rmd0 at FFFFFE00084BC000 for 0000000000008000`.
+    7. Root filesystem mounted: `BSD root: md0, major 1, minor 0`.
+    8. Kernel launched init: `load_init_program: attempting to load /sbin/launchd`.
+    9. Userspace reached: `*** SWEET userspace: init running as PID 1 ***`.
+    10. Heartbeat verified: PID 1 successfully issued Mach/BSD syscalls (`SYS_open`, `SYS_write`, `SYS_getpid`, `SYS_select`), repeatedly printing `SWEET init: still alive` with zero panics.
+
 ## UPDATE 2026-10-26 ? A24 vendor DTB and XNU bring-up patches
 
 - Fork `achgurus-cyber/ios-sweet` created and branch `a24-port` pushed (commit `6bfab3e`). CI run `40284958981` failed in the XNU Build step without a kernel artifact.
