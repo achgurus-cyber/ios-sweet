@@ -85,8 +85,6 @@ def node(name, props=(), children=()):
 
 def build(seed=None, qemu=False, highmem=False, a24=False, ram_ranges=None):
     """Build a target ADT. A24 requires vetted RAM ranges (base, size) tuples."""
-    if a24 and qemu:
-        raise SystemExit('--a24 and --qemu cannot be combined')
     if a24 and not ram_ranges:
         raise SystemExit('A24 requires one or more vetted --ram-range BASE:SIZE values')
     if a24 and highmem:
@@ -106,14 +104,14 @@ def build(seed=None, qemu=False, highmem=False, a24=False, ram_ranges=None):
     # Carve the panic log off the top so the kernel never allocates over it.
     panic_base = phys_base + mem_size - PANIC_LOG_SIZE
     mem_size -= PANIC_LOG_SIZE
-    if a24:
+    if a24 and not qemu:
         gicd, gicr, timebase = A24_GICD, A24_GICR, TIMEBASE
         fb, fb_size, fb_w, fb_h, fb_stride = A24_FB, A24_FB_SIZE, A24_FB_W, A24_FB_H, A24_FB_STRIDE
         ufs_base, ufs_size = A24_UFS, A24_UFS_SIZE
     elif qemu:
         gicd, gicr, timebase = QEMU_GICD, QEMU_GICR, QEMU_TIMEBASE
         fb, fb_size, fb_w, fb_h, fb_stride = FB, FB_SIZE, FB_W, FB_H, FB_STRIDE
-        ufs_base, ufs_size = UFS, UFS_SIZE
+        ufs_base, ufs_size = (UFS, UFS_SIZE) if not a24 else (A24_UFS, A24_UFS_SIZE)
     else:
         gicd, gicr, timebase = GICD, GICR, TIMEBASE
         fb, fb_size, fb_w, fb_h, fb_stride = FB, FB_SIZE, FB_W, FB_H, FB_STRIDE
@@ -202,8 +200,8 @@ def build(seed=None, qemu=False, highmem=False, a24=False, ram_ranges=None):
         ('compatible', cstr('arm,gic-v3')),
         ('interrupt-controller', b''),
         ('virtual-timer-intid', u32(QEMU_VTIMER_INTID if qemu or a24 else VTIMER_INTID)),
-        ('reg', u64(gicd - SOC_BASE, A24_GICD_SIZE if a24 else GICD_SIZE,
-                    gicr - SOC_BASE, A24_GICR_SIZE if a24 else GICR_SIZE)),
+        ('reg', u64(gicd - SOC_BASE, (A24_GICD_SIZE if (a24 and not qemu) else GICD_SIZE),
+                    gicr - SOC_BASE, (A24_GICR_SIZE if (a24 and not qemu) else GICR_SIZE))),
     ])
     arm_io = node('arm-io', [
         ph(),
@@ -285,7 +283,7 @@ def build(seed=None, qemu=False, highmem=False, a24=False, ram_ranges=None):
         ('#address-cells', u32(2)),
         ('#size-cells', u32(2)),
     ], [chosen, defaults, cpus, arm_io, buttons, pram] +
-       ([] if a24 else [fbcon]) + product + ([] if qemu or a24 else [ufs]))
+       ([] if (a24 and not qemu) else [fbcon]) + product + ([] if qemu or a24 else [ufs]))
 
 
 if __name__ == '__main__':
