@@ -1,5 +1,12 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
+## UPDATE 2026-10-26 — A24 vendor DTB and XNU bring-up patches
+
+- Captured the matching `vendor_boot` partition read-only from the running A24 (64 MiB). Header v4: vendor ramdisk 9,676,805 bytes, embedded DTB section 188,009 bytes, one DT-table entry at offset 64. Extracted its FDT for comparison; all files remain outside git.
+- Important memory-map conflict: the embedded vendor FDT declares one 1-GiB region `<0x40000000, 0x40000000>`, while the live FDT declares `<0x40000000, 0x180000000>` (6 GiB). The live tree also lists many fixed reserved ranges for TEE, modem, BL31, display and other firmware. `/proc/iomem` is fragmented and not a safe substitute for the bootloader's exact handoff map. Therefore the ADT generator now refuses A24 output even when a caller supplies a single range; the correct kernel-usable map and carve-outs have not been established.
+- Added draft XNU patches 0082-0085 for the A24 machine config, disabling Xiaomi early framebuffer mappings, MT6789 Aff0 CPU topology, and IOKit matching. Regenerated 0084 after catching duplicated conditional blocks; all four patches apply in order to a clean scratch tree and `git diff --check` passes. No full XNU build has yet been run for this target.
+- Current A24 work is still research/compile scaffolding only. No A24 custom boot or partition write has occurred. Next: establish trustworthy A24 RAM handoff/reservation semantics, then adapt memory bootstrap and do an XNU compile-only pass before revisiting device boot.
+
 ## UPDATE 2026-10-25 — experimental Galaxy A24 branch
 
 This checkout is a separate `a24-port` worktree based on ios-sweet commit `45263be`; the original `main` checkout is untouched. The user requested an actual A24 port attempt. Device writes are not authorized by that request; this milestone is source-only.

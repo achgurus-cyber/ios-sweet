@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Build the minimal Apple Device Tree that the SWEET xnu needs to boot.
+"""Build the minimal Apple Device Tree used by the experimental XNU ports.
 
-Only what the early boot path actually reads (see NOTES.md); every MMIO
-address comes from the sweet live FDT. Usage:  mkadt.py OUT.adt [--dump] [--qemu] [--highmem]
+Only what the early boot path actually reads (see NOTES.md). A24 mode requires
+RAM bounds collected from the live device; it will not reuse Sweet addresses.
 """
 import hashlib, os, struct, sys
 
@@ -39,6 +39,15 @@ VTIMER_INTID = 19
 QEMU_GICD, QEMU_GICR, QEMU_TIMEBASE = 0x08000000, 0x080a0000, 62500000
 QEMU_VTIMER_INTID = 27
 
+# Galaxy A24 values decoded from its live FDT. RAM banks and reserved ranges
+# are deliberately not guessed here; a caller must provide a vetted map.
+A24_GICD, A24_GICD_SIZE = 0x0c000000, 0x40000
+A24_GICR, A24_GICR_SIZE = 0x0c040000, 0x200000
+A24_FB, A24_FB_SIZE = 0xfe144000, 0x1ebb000
+A24_FB_W, A24_FB_H = 1080, 2340
+A24_FB_STRIDE = A24_FB_W * 4  # provisional until boot framebuffer stride is read
+A24_UFS, A24_UFS_SIZE = 0x11270000, 0x2300
+
 BOOT_MANIFEST_HASH = hashlib.sha384(b'sweet boot manifest').digest()
 
 # The iOS userland is the iPhone X (iPhone10,3 / D22AP) IPSW. MobileGestalt
@@ -74,13 +83,42 @@ def node(name, props=(), children=()):
     return n
 
 
-def build(seed=None, qemu=False, highmem=False):
-    """qemu=True: same tree, but with QEMU virt's GIC addresses and CNTFRQ (tools/qemu-sweet.py)."""
-    phys_base, mem_size = (HIGH_PHYS_BASE, HIGH_MEM_SIZE) if highmem else (PHYS_BASE, MEM_SIZE)
+def build(seed=None, qemu=False, highmem=False, a24=False, ram_ranges=None):
+    """Build a target ADT. A24 requires vetted RAM ranges (base, size) tuples."""
+    if a24 and qemu:
+        raise SystemExit('--a24 and --qemu cannot be combined')
+    if a24 and not ram_ranges:
+        raise SystemExit('A24 requires one or more vetted --ram-range BASE:SIZE values')
+    if a24 and highmem:
+        raise SystemExit('--highmem is Sweet-only; provide the A24 RAM range explicitly')
+    if a24:
+        ram_ranges = sorted((int(base), int(size)) for base, size in ram_ranges)
+        if any(base < 0 or size <= 0 or base + size > (1 << 36)
+               for base, size in ram_ranges):
+            raise SystemExit('A24 RAM ranges must be positive and within the configured 36-bit PA space')
+        if any(a + size_a > b for (a, size_a), (b, _) in zip(ram_ranges, ram_ranges[1:])):
+            raise SystemExit('A24 RAM ranges must not overlap')
+        phys_base, mem_size = ram_ranges[0]
+        if len(ram_ranges) != 1:
+            raise SystemExit('A24 loader currently supports one contiguous kernel region only')
+        raise SystemExit('A24 RAM handoff is not validated: live FDT and vendor_boot disagree, and fixed/dynamic reservations must be excluded before building an ADT')
+    else:
+        phys_base, mem_size = (HIGH_PHYS_BASE, HIGH_MEM_SIZE) if highmem else (PHYS_BASE, MEM_SIZE)
     # Carve the panic log off the top so the kernel never allocates over it.
     panic_base = phys_base + mem_size - PANIC_LOG_SIZE
     mem_size -= PANIC_LOG_SIZE
-    gicd, gicr, timebase = (QEMU_GICD, QEMU_GICR, QEMU_TIMEBASE) if qemu else (GICD, GICR, TIMEBASE)
+    if a24:
+        gicd, gicr, timebase = A24_GICD, A24_GICR, TIMEBASE
+        fb, fb_size, fb_w, fb_h, fb_stride = A24_FB, A24_FB_SIZE, A24_FB_W, A24_FB_H, A24_FB_STRIDE
+        ufs_base, ufs_size = A24_UFS, A24_UFS_SIZE
+    elif qemu:
+        gicd, gicr, timebase = QEMU_GICD, QEMU_GICR, QEMU_TIMEBASE
+        fb, fb_size, fb_w, fb_h, fb_stride = FB, FB_SIZE, FB_W, FB_H, FB_STRIDE
+        ufs_base, ufs_size = UFS, UFS_SIZE
+    else:
+        gicd, gicr, timebase = GICD, GICR, TIMEBASE
+        fb, fb_size, fb_w, fb_h, fb_stride = FB, FB_SIZE, FB_W, FB_H, FB_STRIDE
+        ufs_base, ufs_size = UFS, UFS_SIZE
     seed = seed if seed is not None else os.urandom(64)
     phandle = iter(range(1, 1000))
     ph = lambda: ('AAPL,phandle', u32(next(phandle)))
@@ -129,19 +167,20 @@ def build(seed=None, qemu=False, highmem=False):
         # with CSR_ALLOW_UNRESTRICTED_FS (vm_unix.c shared region checks).
         node('asmb', [ph(), ('lp-sip0', u64(0x6f)), ('lp-sip1', u32(1))])])
 
-    # SWEET SMP: all eight cores in physical-core order (0-5 Cortex-A55,
-    # 6-7 Cortex-A76), one homogeneous cluster. The kernel defaults to one
-    # and uses cpus=N to select an initial prefix (N <= 8).
-    # QEMU retains its original single-CPU tree: its MPIDRs differ from sweet.
+    # SWEET/A24 SMP: all eight cores in physical-core order (0-5 Cortex-A55,
+    # 6-7 Cortex-A76), one scheduler cluster for now. The kernel defaults to
+    # one CPU and uses cpus=N to select an initial prefix (N <= 8).
+    # QEMU retains its original single-CPU tree: its MPIDRs differ from phones.
     cpu_nodes = []
     for core in range(1 if qemu else 8):
         cpu_nodes.append(node(f'cpu{core}', [
             ph(),
             ('device_type', cstr('cpu')),
-            ('compatible', cstr('qcom,kryo470') + cstr('ARM,v8')),
-            ('reg', u32(core << 8)),  # actual MPIDR Aff1:Aff0, NOT logical ID
+            ('compatible', (cstr('mediatek,mt6789-cpu') + cstr('ARM,v8')
+                            if a24 else cstr('qcom,kryo470') + cstr('ARM,v8'))),
+            ('reg', u32(core if a24 else core << 8)),  # A24 live FDT uses Aff0 IDs; Sweet uses Aff1 IDs
             ('cpu-id', u32(core)),   # descriptive: XNU assigns IDs by DT order
-            ('cluster-id', u32(0)),  # descriptive; see ml_parse_cpu_topology
+            ('cluster-id', u32(0)),  # current XNU adaptation uses one SMP cluster
             ('cluster-type', u32(0)),  # homogeneous CLUSTER_TYPE_SMP, not AMP
             ('die-cluster-id', u32(0)),
             ('cluster-core-id', u32(core)),
@@ -162,8 +201,9 @@ def build(seed=None, qemu=False, highmem=False):
         ph(),
         ('compatible', cstr('arm,gic-v3')),
         ('interrupt-controller', b''),
-        ('virtual-timer-intid', u32(QEMU_VTIMER_INTID if qemu else VTIMER_INTID)),
-        ('reg', u64(gicd - SOC_BASE, GICD_SIZE, gicr - SOC_BASE, GICR_SIZE)),
+        ('virtual-timer-intid', u32(QEMU_VTIMER_INTID if qemu or a24 else VTIMER_INTID)),
+        ('reg', u64(gicd - SOC_BASE, A24_GICD_SIZE if a24 else GICD_SIZE,
+                    gicr - SOC_BASE, A24_GICR_SIZE if a24 else GICR_SIZE)),
     ])
     arm_io = node('arm-io', [
         ph(),
@@ -185,23 +225,23 @@ def build(seed=None, qemu=False, highmem=False):
             ph(),
             ('device_type', cstr('display-subsystem')),
             ('compatible', cstr('sweet,display')),
-            ('canvas-width', u32(1125)),
-            ('canvas-height', u32(2436)),
-        ])])
+            ('canvas-width', u32(1080 if a24 else 1125)),
+            ('canvas-height', u32(2340 if a24 else 2436)),
+        ])] if not a24 else [gic, node('wdt', [ph(), ('no-pmu', u32(1))])])
 
     fbcon = node('sweet-fbcon', [
         ph(),
-        ('reg', u64(FB, FB_SIZE)),
-        ('width', u32(FB_W)),
-        ('height', u32(FB_H)),
-        ('stride', u32(FB_STRIDE)),
+        ('reg', u64(fb, fb_size)),
+        ('width', u32(fb_w)),
+        ('height', u32(fb_h)),
+        ('stride', u32(fb_stride)),
     ])
 
     # bsd/dev/sweet_ufs.c: the UFS host ABL leaves running (absolute physical reg).
     ufs = node('sweet-ufs', [
         ph(),
-        ('compatible', cstr('qcom,ufshc')),
-        ('reg', u64(UFS, UFS_SIZE)),
+        ('compatible', cstr('mediatek,mt8183-ufshci') if a24 else cstr('qcom,ufshc')),
+        ('reg', u64(ufs_base, ufs_size)),
     ])
 
     # pmap_compute_max_asids requires the node even when no overrides are set.
@@ -229,22 +269,42 @@ def build(seed=None, qemu=False, highmem=False):
     # Identity of the iPhone X whose userland runs here: compatible[0] is
     # hw.model/hw.target (D22AP), model is hw.machine/hw.product
     # (iPhone10,3). 'xiaomi,sweet' stays for SweetPlatformExpert matching.
+    if a24:
+        # A24 is the carrier platform; expose only the neutral ARM identity
+        # and retain iPhone identity in the userspace /product description.
+        compatible = cstr('D22AP') + cstr('iPhone10,3') + cstr('samsung,a24') + cstr('mediatek,MT6789') + cstr('AppleARM')
+    else:
+        compatible = cstr('D22AP') + cstr('iPhone10,3') + cstr('xiaomi,sweet') + cstr('qcom,sm7150') + cstr('AppleARM')
     return node('device-tree', [
         ph(),
-        ('compatible', cstr('D22AP') + cstr('iPhone10,3') + cstr('xiaomi,sweet') + cstr('qcom,sm7150') + cstr('AppleARM')),
+        ('compatible', compatible),
         ('model', cstr('iPhone10,3')),
         ('target-type', cstr('D22')),
         ('target-sub-type', cstr('D22AP')),
         ('manufacturer', cstr('Apple Inc.')),
         ('#address-cells', u32(2)),
         ('#size-cells', u32(2)),
-    ], [chosen, defaults, cpus, arm_io, fbcon, buttons, pram] + product + ([] if qemu else [ufs]))
+    ], [chosen, defaults, cpus, arm_io, buttons, pram] +
+       ([] if a24 else [fbcon]) + product + ([] if qemu or a24 else [ufs]))
 
 
 if __name__ == '__main__':
-    root = build(qemu='--qemu' in sys.argv, highmem='--highmem' in sys.argv)
+    args = sys.argv[1:]
+    if not args:
+        raise SystemExit('usage: mkadt.py OUT.adt [--dump] [--qemu] [--highmem] [--a24 --ram-range BASE:SIZE]')
+    out = args[0]
+    ram_ranges = []
+    for i, arg in enumerate(args):
+        if arg == '--ram-range':
+            try:
+                base, size = args[i + 1].split(':', 1)
+                ram_ranges.append((int(base, 0), int(size, 0)))
+            except (IndexError, ValueError):
+                raise SystemExit('--ram-range must be BASE:SIZE, e.g. 0x80000000:0x10000000')
+    root = build(qemu='--qemu' in args, highmem='--highmem' in args,
+                 a24='--a24' in args, ram_ranges=ram_ranges)
     blob = adt.serialize(root)
-    open(sys.argv[1], 'wb').write(blob)
-    if '--dump' in sys.argv:
+    open(out, 'wb').write(blob)
+    if '--dump' in args:
         adt.dump(adt.parse(blob)[0])
-    print(f'{sys.argv[1]}: {len(blob)} bytes', file=sys.stderr)
+    print(f'{out}: {len(blob)} bytes', file=sys.stderr)
