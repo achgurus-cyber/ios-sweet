@@ -87,9 +87,12 @@ jobs:
           if not log.exists():
               raise SystemExit(0)
           lines = log.read_text(errors="replace").splitlines()
+          ansi = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+          clean_lines = [ansi.sub("", line) for line in lines]
           matches = []
           for line in lines:
-              if re.search(r"\b(?:fatal )?error:\s", line) or re.search(r"\bundefined symbols?\b", line, re.I):
+              clean = ansi.sub("", line)
+              if re.search(r"^.*?:\d+:\d+(?::\d+)?: (?:fatal )?error:\s", clean) or re.search(r"^(?:ld|clang): error:", clean) or re.search(r"^Undefined symbols for architecture", clean):
                   matches.append(line.strip())
           summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
           with summary.open("a") as out:
@@ -102,9 +105,9 @@ jobs:
           for line in matches[:100]:
               safe = line.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
               print(f"::error title=XNU compiler diagnostic::{safe}")
-          for line in lines[-35:]:
-              safe = line.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-              print(f"::notice title=XNU build log tail::{safe}")
+          tail = "\n".join(clean_lines[-35:])
+          safe = tail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print(f"::notice title=XNU build log tail::{safe}")
           PY
 
       - name: Package build tree for local compiles
