@@ -178,7 +178,8 @@ def build(seed=None, qemu=False, highmem=False, a24=False, ram_ranges=None):
             ('device_type', cstr('cpu')),
             ('compatible', (cstr('mediatek,mt6789-cpu') + cstr('ARM,v8')
                             if a24 else cstr('qcom,kryo470') + cstr('ARM,v8'))),
-            ('reg', u32(core if a24 else core << 8)),  # A24 live FDT uses Aff0 IDs; Sweet uses Aff1 IDs
+            # Both A24 and Sweet number cores in MPIDR Aff1 (0x000..0x700).
+            ('reg', u32(core << 8)),
             ('cpu-id', u32(core)),   # descriptive: XNU assigns IDs by DT order
             ('cluster-id', u32(0)),  # current XNU adaptation uses one SMP cluster
             ('cluster-type', u32(0)),  # homogeneous CLUSTER_TYPE_SMP, not AMP

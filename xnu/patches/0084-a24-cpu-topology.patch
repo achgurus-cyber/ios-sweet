@@ -1,22 +1,17 @@
 diff --git a/iokit/Kernel/arm/SweetCPU.cpp b/iokit/Kernel/arm/SweetCPU.cpp
-index 2545cf9..fe574aa 100644
+index 2545cf9..127b997 100644
 --- a/iokit/Kernel/arm/SweetCPU.cpp
 +++ b/iokit/Kernel/arm/SweetCPU.cpp
-@@ -73,16 +73,24 @@ SweetCPU::start(IOService *provider)
+@@ -73,7 +73,7 @@ SweetCPU::start(IOService *provider)
  	if (*(const uint32_t *)reg->getBytesNoCopy() != cpu->phys_id) {
  		return false;
  	}
 -	/* MPIDR Aff1 = core: 0x000-0x500 A55, 0x600/0x700 A76 */
-+	/* Sweet uses Aff1 for cores; A24 live DT uses Aff0 IDs 0..7. */
-+#ifdef A24
-+	if (cpu->phys_id > 7 || topology->num_cpus > SWEET_SMP_MAX_CPUS) {
-+#else
++	/* Sweet and A24 encode core IDs in MPIDR Aff1: 0x000-0x700. */
  	if (cpu->phys_id > 0x700 || (cpu->phys_id & 0xff) != 0 ||
  	    topology->num_cpus > SWEET_SMP_MAX_CPUS) {
-+#endif
  		panic("SWEET CPU: invalid topology cpu=%u mpidr=0x%x count=%u",
- 		    cpu->cpu_id, cpu->phys_id, topology->num_cpus);
- 	}
+@@ -82,7 +82,11 @@ SweetCPU::start(IOService *provider)
  	if (!IOCPU::start(provider)) {
  		return false;
  	}
@@ -29,7 +24,7 @@ index 2545cf9..fe574aa 100644
  		return false;
  	}
 diff --git a/osfmk/arm64/machine_routines.c b/osfmk/arm64/machine_routines.c
-index a1f2a91..7064082 100644
+index a1f2a91..e9b9a4d 100644
 --- a/osfmk/arm64/machine_routines.c
 +++ b/osfmk/arm64/machine_routines.c
 @@ -1087,7 +1087,11 @@ ml_parse_cpu_topology(void)
@@ -38,9 +33,9 @@ index a1f2a91..7064082 100644
  
 -#if defined(SWEET)
 +#if defined(A24)
-+		/* A24 MPIDRs use Aff0 core IDs; preserve the DT cluster IDs. */
++		/* A24 and Sweet encode core IDs in MPIDR Aff1. */
 +		cpu->die_cluster_id = (int)ml_readprop(child, "die-cluster-id", 0);
-+		cpu->cluster_core_id = (int)ml_readprop(child, "cluster-core-id", MPIDR_CPU_ID(cpu->phys_id));
++		cpu->cluster_core_id = (int)ml_readprop(child, "cluster-core-id", cpu->phys_id >> 8);
 +#elif defined(SWEET)
  		/* Aff1 encodes the core on SM7150, not an Apple cluster ID. */
  		cpu->die_cluster_id = (int)ml_readprop(child, "die-cluster-id", 0);
