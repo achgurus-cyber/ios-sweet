@@ -2,7 +2,7 @@
 
 **Date**: 2026-10-27  
 **Target Hardware**: Samsung Galaxy A24 (`SM-A245F`), MediaTek MT6789 (Helio G99)  
-**Current Device Mode**: Download Mode (`ODIN MODE`, USB connected)  
+**Last documented Device Mode**: Download Mode (`ODIN MODE`, USB connected); not re-checked during this audit
 **Baseline Git Commit**: `bb03a66` (branch `a24-port`)  
 **Audit Objective**: Evaluate the technical feasibility of executing Apple XNU on physical hardware *without flashing, without partition alteration, and without disabling Secure Boot*.
 
@@ -57,21 +57,12 @@
   - `PIT_READ` / `PIT_WRITE`
   - `PARTITION_FLASH_WRITE` (Streams TAR members directly to physical UFS/eMMC blocks)
   - `DEVICE_REBOOT`
-- **Missing Capabilities**:
-  - **No `RAM_BOOT` or `EXEC_IN_DRAM` command exists** in the Samsung Loke protocol specification or implementation. Download Mode was engineered exclusively as an offline factory flashing and recovery interface.
-- **Acceptance of `a24-xnu-boot.img`**:
-  - If wrapped into an Odin TAR and submitted, Download Mode executes signature verification before flashing or during early boot:
-    - Rejects unsigned `boot.img` with `SECURE CHECK FAIL: (boot)`.
-    - Rejects AVB-disabled `vbmeta.img` with `SECURE CHECK FAIL: (vbmeta)`.
+- **Temporary boot capability**: this project has no verified Samsung Download Mode RAM-boot command or implementation. Do not make a stronger protocol-wide claim from this repository audit alone.
+- **Acceptance of custom images**: the phone's recorded OEM Lock OFF/KG Completed state is consistent with an unlocked bootloader. Magisk's Samsung instructions say an unlocked Samsung accepts unofficial images and prescribe patching a matching full AP archive ([Magisk instructions](https://github.com/topjohnwu/Magisk/blob/master/docs/install.md#samsung-devices)). The current experimental AOSP boot-v4 image remains untested, and its failure mode cannot be inferred from generic claims about Samsung signing.
 
 ### 3.2 MediaTek BootROM / Preloader (MT6789 USB VCOM)
-- **Status on Production Samsung Devices**:
-  - MT6789 BootROM is protected by Samsung SLA (Serial Link Authentication) and DAA (Download Agent Authentication).
-  - Preloader communication requires challenge-response cryptographic tokens signed by Samsung's engineering CA.
-- **Constraints**:
-  - Open, unauthenticated execution in DRAM is disabled by hardware eFuses.
-  - Bypassing SLA/DAA requires known MTK BootROM vulnerabilities (e.g. `mtkclient` control-transfer overflow) or hardware testpoint grounding.
-  - In accordance with project instructions (*"Не запускай BROM/DA-эксплойты, не используй тестпоинт и не пытайся обходить авторизацию"*), no exploit or testpoint bypass was or will be attempted.
+- Upstream `mtkclient` lists MT6789 as V6, requiring a valid DA, and says support is limited to unfused devices; it reports no public solution for DAA/SLA/remote-authenticated devices ([upstream README](https://github.com/bkerler/mtkclient)).
+- That upstream limitation does not prove the security configuration of this exact SM-A245F. No exploit, testpoint, or authentication bypass has been attempted. No supported DRAM-boot method for this phone has been verified.
 
 ---
 
@@ -110,21 +101,21 @@
 
 ### 5.1 Confirmed Technical Facts
 1. Samsung Galaxy A24 (`SM-A245F`) uses Samsung Little Kernel (`sboot`) and Download Mode (`ODIN MODE`).
-2. Download Mode does not support `fastboot boot` or any in-memory DRAM execution protocol; all operations write to persistent storage.
+2. The phone has no observed Fastboot interface, and this project has no implemented or verified Samsung Download Mode RAM-execution path; its present tooling only prepares offline images.
 3. The XNU build (`kernel.development.a24`, `out-a24.adt`, `a24-shim.Image`, `init`) was verified in host QEMU virt-8.2, confirming EL0 userspace execution and demand paging under an emulated virtual environment.
 4. The repository contains no implementation of tethered RAM booting for MediaTek MT6789.
-5. Flashing unsigned images through Odin is blocked by Samsung Secure Boot (`SECURE CHECK FAIL`).
-6. Booting modified partitions via Little Kernel is blocked by AVB 2.0 descriptor checks (`AVB hash mismatch`).
+5. The cause of any earlier `SECURE CHECK FAIL` is not documented well enough to attribute it to Samsung signature enforcement; the device's OEM Lock OFF state makes the old blanket claim doubtful.
+6. No physical boot log demonstrates an AVB mismatch for the current experimental image.
 
 ### 5.2 Assumptions & Hypotheses
 1. *Assumption*: The MediaTek Little Kernel framebuffer address dynamically assigned to `/chosen/atag,videolfb-fb_base_l` will remain mapped and accessible when control transfers to `a24-shim.Image`.
 2. *Assumption*: PSCI `CPU_ON` calls via `smc #0` to MT6789 ARM Trusted Firmware (BL31) will succeed without triggering EL3 permission traps when booted in single-core mode (`cpus=1`).
-3. *Hypothesis*: If a custom recovery (such as TWRP) or an engineering kernel with root access is booted, XNU could theoretically be chainloaded via `kexec` from Linux userspace. *(Unverified hypothesis; no kexec wrapper currently exists).*
+3. *Hypothesis*: a custom Linux kexec/shim chain could be researched, but stock `CONFIG_KEXEC` settings are unknown and Linux kexec is not itself an XNU loader. No such A24 chain exists in this repository.
 
 ### 5.3 Concrete Blockers
-- **Blocker 1**: No flashless boot protocol exists on SM-A245F without exploiting MTK BootROM.
-- **Blocker 2**: Samsung Download Mode rejects writing custom `boot.img` or `vbmeta.img` without an authorized Samsung RSA release signature.
-- **Blocker 3**: AVB 2.0 chain of trust in Little Kernel rejects modified boot images against stock `vbmeta` descriptors.
+- **Blocker 1**: No verified flashless boot protocol or RAM-boot implementation exists for this SM-A245F.
+- **Blocker 2**: The current experimental boot image has not been validated against this exact unlocked firmware's Odin, boot-header, and AVB behavior.
+- **Blocker 3**: No physical A24 boot test has established successful shim entry, RAM-map validity, or hardware initialization.
 
 ---
 
