@@ -6,8 +6,8 @@
 Does what shim/loader.c does on the phone, but on the host: places the
 kernel segments, ADT and boot_args at their physical addresses and starts
 the CPU at a 6-instruction stub that jumps to the entry with x0 = boot_args.
-virt RAM starts at 0x40000000; with 4G it covers the phone's framebuffer
-(0x9c000000) and the kernel's phys_base (0xb0000000) as plain memory.
+virt RAM starts at 0x40000000. A sparse file-backed RAM image covers the
+payload's complete physical range, including larger embedded iOS ramdisks.
 
 After N seconds (or when the guest stops) it writes into OUTDIR:
   fb.png     the 1080x2400 framebuffer (what the phone screen would show)
@@ -20,7 +20,7 @@ snapshot of the circular screen, not a complete boot log. --fail-on-panic
 returns 2 when a panic is visible; absence of a panic does not prove boot.
 An undecodable or blank screen returns 3 with --fail-on-panic.
 """
-import argparse, json, os, shutil, socket, struct, subprocess, sys, time, zlib
+import argparse, json, mmap, os, shutil, socket, struct, subprocess, sys, time, zlib
 
 FB_BASE, FB_W, FB_H = 0x9c000000, 1080, 2400
 FB_STRIDE = FB_W * 4
@@ -74,8 +74,8 @@ def check_kernel_tools(kernel_path):
     return True
 
 
-def build_image(payload):
-    """Return (phys_base, ram_image, boot_args_pa, entry_pa)."""
+def build_image_file(payload, image_path, ram_base=0x40000000):
+    """Place a payload in a sparse, file-backed image matching QEMU guest RAM."""
     magic, ver, nsegs = struct.unpack_from('<8sII', payload, 0)
     assert magic == b'SWEETXNU' and ver == 1, 'not a SWEETXNU v1 payload'
     virt_base, entry_va, adt_off, adt_size, kernel_end, phys_base, mem_size = \
@@ -85,18 +85,34 @@ def build_image(payload):
     adt_pa = kernel_end + delta
     ba_pa = (adt_pa + adt_size + PAGE - 1) & ~(PAGE - 1)
     top = ba_pa + PAGE
-    img = bytearray(top - phys_base)
-    for i in range(nsegs):
-        vmaddr, vmsize, foff, fsize = struct.unpack_from('<4Q', payload, 0x2a8 + 32 * i)
-        o = vmaddr + delta - phys_base
-        img[o:o + fsize] = payload[foff:foff + fsize]
-    img[adt_pa - phys_base:adt_pa - phys_base + adt_size] = payload[adt_off:adt_off + adt_size]
     ba = struct.pack('<HH4x4Q6QI4xQI', 2, 2, virt_base, phys_base, mem_size, top,
                      FB_BASE, 1, FB_STRIDE, FB_W, FB_H, 32, 0, adt_pa - delta, adt_size)
     ba += cmdline + b'\0' * 4 + struct.pack('<QQ', 0, mem_size)
     assert len(ba) == 736
-    img[ba_pa - phys_base:ba_pa - phys_base + len(ba)] = ba
-    return phys_base, bytes(img), ba_pa, entry_va + delta
+    image_size = max(4 << 30, -(-(phys_base + mem_size - ram_base) // (1 << 30)) * (1 << 30))
+    if image_size <= 0 or kernel_end + delta > phys_base + mem_size or STUB_PA < ram_base:
+        raise ValueError('payload kernel/ramdisk exceeds its declared physical RAM range')
+    with open(image_path, 'wb') as image:
+        image.truncate(image_size)
+        for i in range(nsegs):
+            vmaddr, vmsize, foff, fsize = struct.unpack_from('<4Q', payload, 0x2a8 + 32 * i)
+            dest = vmaddr + delta - ram_base
+            if dest < 0 or dest + fsize > image_size:
+                raise ValueError(f'payload segment {i} is outside the QEMU RAM image')
+            # Bound memory use for large iOS ramdisks and preserve sparse zero regions.
+            with memoryview(payload)[foff:foff + fsize] as segment:
+                for pos in range(0, fsize, 4 * 1024 * 1024):
+                    chunk = segment[pos:pos + 4 * 1024 * 1024]
+                    if any(chunk):
+                        image.seek(dest + pos)
+                        image.write(chunk)
+        for dest, source, size in ((adt_pa - ram_base, adt_off, adt_size),
+                                   (ba_pa - ram_base, None, len(ba)),
+                                   (STUB_PA - ram_base, None, len(stub(ba_pa, entry_va + delta)))):
+            image.seek(dest)
+            data = payload[source:source + size] if source is not None else (ba if dest == ba_pa - ram_base else stub(ba_pa, entry_va + delta))
+            image.write(data)
+    return phys_base, ba_pa, entry_va + delta
 
 
 def stub(ba_pa, entry_pa):
@@ -251,7 +267,10 @@ def main():
     if a.kernel and not check_kernel_tools(a.kernel):
         return 1
 
-    payload = open(a.payload, 'rb').read()
+    os.makedirs(a.outdir, exist_ok=True)
+    out = os.path.abspath(a.outdir)
+    payload_file = open(a.payload, 'rb')
+    payload = mmap.mmap(payload_file.fileno(), 0, access=mmap.ACCESS_READ)
     font = None
     if a.kernel:
         symbols = subprocess.check_output(['llvm-nm', '--defined-only', a.kernel], text=True)
@@ -260,29 +279,27 @@ def main():
         if len(fonts) != 1:
             ap.error('kernel must contain exactly one _iso_font symbol')
         font = payload_data(payload, fonts[0], 256 * 16)
-    os.makedirs(a.outdir, exist_ok=True)
-    out = os.path.abspath(a.outdir)
 
-    phys_base, img, ba_pa, entry_pa = build_image(payload)
-    open(f'{out}/ram.bin', 'wb').write(img)
-    open(f'{out}/stub.bin', 'wb').write(stub(ba_pa, entry_pa))
+    phys_base = struct.unpack_from('<Q', payload, 0x38)[0]
+    mem_size = struct.unpack_from('<Q', payload, 0x40)[0]
+    ram_gib = max(4, -(-(phys_base + mem_size - 0x40000000) // (1 << 30)))
+    phys_base, ba_pa, entry_pa = build_image_file(payload, f'{out}/ram.bin')
     print(f'phys_base={phys_base:#x} boot_args={ba_pa:#x} entry={entry_pa:#x}', file=sys.stderr)
 
     mon = f'{out}/mon.sock'
     if os.path.exists(mon):
         os.unlink(mon)
     # virt RAM starts at 0x40000000: cover the payload's RAM (mkadt.py --highmem needs 8G).
-    mem_size = struct.unpack_from('<Q', payload, 0x40)[0]
-    ram_gib = max(4, -(-(phys_base + mem_size - 0x40000000) // (1 << 30)))
     smp_arg = str(a.smp)
     if smp_arg.isdigit() and int(smp_arg) > 1:
         smp_arg = f'{smp_arg},clusters={smp_arg},cores=1'
-    cmd = ['qemu-system-aarch64', '-M', 'virt,gic-version=3', '-cpu', a.cpu, '-smp', smp_arg, '-m', f'{ram_gib}G',
+    cmd = ['qemu-system-aarch64', '-object', f'memory-backend-file,id=mem,size={ram_gib}G,mem-path={out}/ram.bin,share=on',
+           '-M', 'virt,gic-version=3,memory-backend=mem', '-m', f'{ram_gib}G',
+           '-cpu', a.cpu, '-smp', smp_arg,
            '-nographic', '-serial', f'file:{out}/serial.txt', '-qmp', f'unix:{mon},server,nowait',
            '-d', 'int,guest_errors,unimp', '-D', f'{out}/qemu.log', '-no-reboot',
-           '-device', f'loader,file={out}/ram.bin,addr={phys_base:#x},force-raw=on',
-           '-device', f'loader,file={out}/stub.bin,addr={STUB_PA:#x},force-raw=on',
-           '-device', f'loader,addr={STUB_PA:#x},cpu-num=0']
+           ]
+    cmd += ['-device', f'loader,addr={STUB_PA:#x},cpu-num=0']
     if a.gdb:
         cmd += ['-S', '-gdb', 'tcp::1234']
 
@@ -341,6 +358,8 @@ def main():
             p.wait()
         return 130
     finally:
+        payload.close()
+        payload_file.close()
         ram_file = f'{out}/ram.bin'
         if os.path.exists(ram_file):
             try:
