@@ -8,4 +8,9 @@ shim/out/
 shim/out-a24/
 xnu/out/
 xnu/out-*/
+out-a24/
+*.adt
+*.bin
+*.img
+*.tar
 __pycache__/
