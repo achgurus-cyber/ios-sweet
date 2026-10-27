@@ -330,8 +330,6 @@ def main():
         os.unlink(mon)
     # virt RAM starts at 0x40000000: cover the payload's RAM (mkadt.py --highmem needs 8G).
     smp_arg = str(a.smp)
-    if smp_arg.isdigit() and int(smp_arg) > 1:
-        smp_arg = f'{smp_arg},clusters={smp_arg},cores=1'
     cmd = ['qemu-system-aarch64', '-accel', f'tcg,thread={a.tcg_thread}',
            '-object', f'memory-backend-file,id=mem,size={ram_gib}G,mem-path={out}/ram.bin,share=on',
            '-M', 'virt,gic-version=3,memory-backend=mem', '-m', f'{ram_gib}G',

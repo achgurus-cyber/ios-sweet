@@ -57,7 +57,7 @@
  	bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
  	void free(void) APPLE_KEXT_OVERRIDE;
  	void initCPU(bool boot) APPLE_KEXT_OVERRIDE;
-@@ -37,17 +62,21 @@
+@@ -37,17 +62,22 @@
  SweetCPU::start(IOService *provider)
  {
  	const ml_topology_info_t *topology = ml_get_topology_info();
@@ -77,9 +77,10 @@
 +	if (*(const uint32_t *)reg->getBytesNoCopy() != cpu->phys_id) {
 +		return false;
 +	}
-+	if (cpu->phys_id > 0x500 || (cpu->phys_id & 0xff) != 0 ||
-+	    topology->num_cpus > SWEET_SMP_MAX_CPUS) {
-+		panic("SWEET CPU: invalid A55 topology cpu=%u mpidr=0x%x count=%u",
++	bool a24_aff1 = cpu->phys_id <= 0x500 && (cpu->phys_id & 0xff) == 0;
++	bool qemu_aff0 = cpu->phys_id < SWEET_SMP_MAX_CPUS;
++	if ((!a24_aff1 && !qemu_aff0) || topology->num_cpus > SWEET_SMP_MAX_CPUS) {
++		panic("SWEET CPU: invalid topology cpu=%u mpidr=0x%x count=%u",
 +		    cpu->cpu_id, cpu->phys_id, topology->num_cpus);
  	}
  	if (!IOCPU::start(provider)) {
