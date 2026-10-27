@@ -1,0 +1,261 @@
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe000748fa60
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe000748fa60
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe00073b5468
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe00073b5468
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe00079a1abc
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe00079a1abc
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe00079a815c
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe00079a815c
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe00079c465c
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe00079c32c0
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe000733fe98
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe000733fe98
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe00079c32c0
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe00079c465c
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe0007493194
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe00079d3a20
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe0007a5b0b8
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007a5b0b8
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe0007b2d064
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007b2d064
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe0007a71c38
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007a71c38
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007493194
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe00079d3a20
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe00074901e0
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe00074901e0
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe00077669cc
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe00077669cc
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe0007a71b00
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007a71b00
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe0007843314
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007843314
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe0007493000
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007493000
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe0007847c90
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007847c90
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe00075668a8
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe00075668a8
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x3890000
+...with ELR 0xfffffe00078c1b74
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe00078c1b74
+Taking exception 4 [Data Abort] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with FAR 0xfffffe392fd70000
+...with ELR 0xfffffe000764b220
+...to EL1 PC 0xfffffe0007488000 PSTATE 0x4003c5
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with ELR 0xfffffe00073ff318
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe00073ff318
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe000764b220
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with ELR 0xfffffe000748fa60
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe000748fa60
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with ELR 0xfffffe000748fa60
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe000748fa60
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with ELR 0xfffffe0007b2d064
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007b2d064
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with ELR 0xfffffe0007b2d064
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007b2d064
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with ELR 0xfffffe0007464b14
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007464b14
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with ELR 0xfffffe0007397d68
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007397d68
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with ELR 0xfffffe0007599f80
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007599f80
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with ELR 0xfffffe0007b2d064
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007b2d064
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with ELR 0xfffffe00074f3a58
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe00074f3a58
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with ELR 0xfffffe00073a2190
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe00073a2190
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with ELR 0xfffffe00077b3068
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe00077b3068
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with ELR 0xfffffe000777d150
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with ELR 0xfffffe000748fa60
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe000748fa60
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe000777d150
+Taking exception 4 [Data Abort] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000045
+...with FAR 0x4000
+...with ELR 0xfffffe0007492a78
+...to EL1 PC 0xfffffe0007488000 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007492a78
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000045
+...with ELR 0xfffffe0007a85ec8
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007a85ec8
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000045
+...with ELR 0xfffffe000743a824
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe000743a824
+Taking exception 4 [Data Abort] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with FAR 0xfffffe3927b68000
+...with ELR 0xfffffe0007b2d03c
+...to EL1 PC 0xfffffe0007488000 PSTATE 0x4003c5
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x96000046
+...with ELR 0xfffffe0007430a8c
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007430a8c
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007b2d03c
+Taking exception 4 [Data Abort] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x9600000b
+...with FAR 0x4000
+...with ELR 0xfffffe0007492abc
+...to EL1 PC 0xfffffe0007488000 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe0007492abc
+Taking exception 5 [IRQ] on CPU 0
+...from EL1 to EL1
+...with ESR 0x25/0x9600000b
+...with ELR 0xfffffe00077e9e90
+...to EL1 PC 0xfffffe0007488080 PSTATE 0x4003c5
+Exception return from AArch64 EL1 to AArch64 EL1 PC 0xfffffe00077e9e90
+Taking exception 1 [Undefined Instruction] on CPU 0
+...from EL1 to EL1
+...with ESR 0x0/0x2000000
+...with ELR 0xfffffe0007324f40
+...to EL1 PC 0xfffffe0007488000 PSTATE 0x4003c5
