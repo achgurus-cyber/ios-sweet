@@ -4,7 +4,7 @@ The offline builder `tools/mk-a24-diagnostic-odin.py` creates an experimental Od
 
 `shim/build-a24.sh` now has separate `A24_MODE=diagnostic` and `A24_MODE=xnu` builds. The diagnostic mode parks before MMU/GIC/PSCI. The XNU mode retains the payload loader; caught shim exceptions park on-screen instead of deliberately resetting. The offline generic Android-v4 XNU wrapper is `out-a24/a24-xnu-boot-current.img` (16,846,848 bytes, SHA-256 `f5d42f98a03cabfe514d5be6824af73d909f32307a88013ff22983f3985e41c5`). It still contains a QEMU-derived A24 memory map and is not a physical-device or Odin-ready image.
 
-The user reports that the previously flashed build displayed Samsung's logo and unlock warning, then went black and powered off before any diagnostic text appeared. The cause is not proven. Source review found that `start.S` assumed EL1 even though project notes identify LK/sboot entry at EL2 as possible. The latest untested candidate normalizes EL2 to EL1 before setting EL1 vectors and entering C. Both diagnostic and XNU shim modes compile with this change. This is a plausible early-boot defect, not a confirmed explanation; framebuffer access and boot-chain acceptance also remain unverified.
+The user reports that the previously flashed build displayed Samsung's logo and unlock warning, then went black and powered off before any diagnostic text appeared. The cause is not proven. Source review found that `start.S` assumed EL1 even though project notes identify LK/sboot entry at EL2 as possible. The latest untested candidate normalizes EL2 to EL1 before setting EL1 vectors and entering C. Both diagnostic and XNU shim modes compile with this change. This is a plausible early-boot defect, not a confirmed explanation; framebuffer access and boot-chain acceptance also remain unverified. Odin rejected the first candidate file because its output filename did not match the TAR name embedded in its MD5 footer. The builder now derives the footer filename from the output path.
 
 The image contains the shim and a valid empty initramfs only. It contains no XNU payload and no Android userspace. The current first-stage diagnostic build is intentionally minimal: if entered, it reports the shim entry, DTB/FDT validity and LK framebuffer properties, then parks. It does not switch the MMU, access GIC registers, or issue PSCI calls. This behavior has only been reasoned from source; it has not been observed on a physical A24.
 
@@ -21,9 +21,9 @@ The official DYG1 vendor FDT identifies the SoC PMIC wrapper at `0x10026000` and
 - Shim: ARM64 Linux Image, 180,224 bytes
 - Initramfs: 46-byte gzip containing an empty `newc` archive
 - Odin TAR MD5: verified by `samloader verify-md5`
-- Package SHA-256: `e51e1564f276f875b75e5a7f8333056121b9a6095699f54604635cf6695da74b`
+- Package SHA-256: `6763e59270a735f2653f03ebef88c42bcc2cb4ef814f2ed3f693e5dba0ee6981`
 - TAR length is 512-byte aligned; footer uses the official-style `MD5␠␠filename.tar` layout and was independently re-calculated.
-- The A24 first-stage path parks immediately after reporting framebuffer/DTB info; caught exceptions also park instead of invoking reset. This removes the earlier intentional reset and avoids unvalidated MMU/GIC/PSCI operations. The package footer MD5 was independently recalculated and matches. Hardware watchdog, framebuffer validity, bootloader acceptance, and physical entry remain unverified.
+- The A24 first-stage path parks immediately after reporting framebuffer/DTB info; caught exceptions also park instead of invoking reset. This removes the earlier intentional reset and avoids unvalidated MMU/GIC/PSCI operations. The package footer MD5, TAR alignment, and match between Odin output basename and embedded TAR filename were independently recalculated. The candidate has not yet been retried in Odin or booted on hardware. Hardware watchdog, framebuffer validity, bootloader acceptance, and physical entry remain unverified.
 
 ## Limits and recovery
 

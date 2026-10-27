@@ -81,7 +81,8 @@ def build(stock_path: Path, kernel_path: Path, output_path: Path) -> None:
     payload = tar_bytes.getvalue()
     if len(payload) % 512:
         raise SystemExit("TAR payload is not 512-byte aligned")
-    footer = f"{hashlib.md5(payload).hexdigest()}  a24-diagnostic-oneui7-boot.tar\n".encode("ascii")
+    tar_name = output_path.name.removesuffix(".md5")
+    footer = f"{hashlib.md5(payload).hexdigest()}  {tar_name}\n".encode("ascii")
     output_path.write_bytes(payload + footer)
     print(f"Wrote experimental diagnostic package: {output_path} ({output_path.stat().st_size} bytes)")
     print(f"SHA256: {hashlib.sha256(output_path.read_bytes()).hexdigest()}")
