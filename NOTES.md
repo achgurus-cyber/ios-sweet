@@ -589,3 +589,12 @@ What it took today (in order): 0058 HID services (Apple IOHIDFamily-1915 user cl
      cpu_init, before arm_vm_init.
   5. panic hook at top of panic_trap_to_debugger: va_copy + _doprnt(fmt, &copy, sweet_early_putc, 16).
   Verify with tools/xnu-cc.py (compile+symbols) and patch-order simulation before the single CI run.
+
+## HANDOFF 2026-10-27 — RAMDisk size overflow identified (kernel patch pending build)
+
+- Rechecked valid fixed-`pread` QEMU captures: 1, 2, and 3 GiB empty HFS images mount and reach the expected `/sbin/launchd` lookup; 4 GiB and the 16 GiB iOS root fail with HFS metadata `EINVAL` before launchd. Earlier captures made before the sparse-copy fix are not evidence.
+- Inspected the exact XNU 8796.141.3 source at `/tmp/xnu-8796.141.3/bsd/dev/memdev.c`. `mdSize` is a 32-bit page count, and seven byte-size expressions shift it left 12 bits without widening. The arithmetic matches the observed boundary: 3 GiB -> `0xc0000000`; 4 GiB -> `0x00000000`; 16 GiB -> `0x00000000` under 32-bit unsigned arithmetic. This is a strong, source-backed diagnosis, but it is not yet confirmed by a boot with a patched kernel.
+- Added `xnu/patches/0088-memdev-64-bit-ramdisk-size.patch`, widening all seven `mdSize << 12` calculations to `uint64_t`. `git apply --check` against the clean xnu-8796.141.3 source succeeds. The patch has not been compiled or boot-tested yet.
+- Fixed `tools/qemu-sweet.py` sparse payload copying: enumerate allocated source extents and read by `os.pread`, avoiding buffered-file offset desynchronization while keeping memory bounded. Fixed-pread 1–3 GiB controls now reach launchd; full-root capture still fails before this kernel patch.
+- Next: build a new XNU kernel with patch 0088, then rerun the 4 GiB empty HFS control. If it reaches launchd, retry the full 16 GiB image; if not, capture the patched-kernel diagnostics before changing anything else. The local environment has no `gh` CLI or XNU cross-compiler, so kernel build currently requires an authorized macOS GitHub Actions run or supplying a local XNU build environment. No phone was contacted.
+- No iOS userland/SpringBoard has booted yet. The current milestone is a source-level diagnosis and an unbuilt candidate fix, not a percent-complete claim.

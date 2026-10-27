@@ -21,6 +21,7 @@ returns 2 when a panic is visible; absence of a panic does not prove boot.
 An undecodable or blank screen returns 3 with --fail-on-panic.
 """
 import argparse, json, mmap, os, shutil, socket, struct, subprocess, sys, time, zlib
+import errno
 
 FB_BASE, FB_W, FB_H = 0x9c000000, 1080, 2400
 FB_STRIDE = FB_W * 4
@@ -74,7 +75,31 @@ def check_kernel_tools(kernel_path):
     return True
 
 
-def build_image_file(payload, image_path, ram_base=0x40000000):
+def file_data_ranges(fd, start, length):
+    """Yield allocated ranges of a sparse source file, or one full range."""
+    end = start + length
+    if hasattr(os, 'SEEK_DATA') and hasattr(os, 'SEEK_HOLE'):
+        pos = start
+        try:
+            while pos < end:
+                try:
+                    data = os.lseek(fd, pos, os.SEEK_DATA)
+                except OSError as e:
+                    if e.errno == errno.ENXIO:
+                        return
+                    raise
+                if data >= end:
+                    return
+                hole = min(os.lseek(fd, data, os.SEEK_HOLE), end)
+                yield data, hole
+                pos = hole
+            return
+        except OSError:
+            pass  # Unsupported by the backing filesystem; use bounded reads.
+    yield start, end
+
+
+def build_image_file(payload, image_path, ram_base=0x40000000, source_file=None):
     """Place a payload in a sparse, file-backed image matching QEMU guest RAM."""
     magic, ver, nsegs = struct.unpack_from('<8sII', payload, 0)
     assert magic == b'SWEETXNU' and ver == 1, 'not a SWEETXNU v1 payload'
@@ -99,13 +124,25 @@ def build_image_file(payload, image_path, ram_base=0x40000000):
             dest = vmaddr + delta - ram_base
             if dest < 0 or dest + fsize > image_size:
                 raise ValueError(f'payload segment {i} is outside the QEMU RAM image')
-            # Bound memory use for large iOS ramdisks and preserve sparse zero regions.
-            with memoryview(payload)[foff:foff + fsize] as segment:
-                for pos in range(0, fsize, 4 * 1024 * 1024):
-                    chunk = segment[pos:pos + 4 * 1024 * 1024]
-                    if any(chunk):
-                        image.seek(dest + pos)
-                        image.write(chunk)
+            # Walk sparse extents when possible; bound memory use on dense files.
+            fd = source_file.fileno() if source_file else None
+            ranges = file_data_ranges(fd, foff, fsize) if fd is not None else [(foff, foff + fsize)]
+            for start, end in ranges:
+                pos = start
+                while pos < end:
+                    count = min(4 * 1024 * 1024, end - pos)
+                    if source_file and hasattr(os, 'pread'):
+                        chunk = os.pread(source_file.fileno(), count, pos)
+                    elif source_file:
+                        source_file.seek(pos)
+                        chunk = source_file.read(count)
+                    else:
+                        chunk = payload[pos:pos + count]
+                    if len(chunk) != count:
+                        raise IOError(f'unexpected EOF in payload at offset {pos}')
+                    image.seek(dest + pos - foff)
+                    image.write(chunk)
+                    pos += count
         for dest, source, size in ((adt_pa - ram_base, adt_off, adt_size),
                                    (ba_pa - ram_base, None, len(ba)),
                                    (STUB_PA - ram_base, None, len(stub(ba_pa, entry_va + delta)))):
@@ -283,7 +320,7 @@ def main():
     phys_base = struct.unpack_from('<Q', payload, 0x38)[0]
     mem_size = struct.unpack_from('<Q', payload, 0x40)[0]
     ram_gib = max(4, -(-(phys_base + mem_size - 0x40000000) // (1 << 30)))
-    phys_base, ba_pa, entry_pa = build_image_file(payload, f'{out}/ram.bin')
+    phys_base, ba_pa, entry_pa = build_image_file(payload, f'{out}/ram.bin', source_file=payload_file)
     print(f'phys_base={phys_base:#x} boot_args={ba_pa:#x} entry={entry_pa:#x}', file=sys.stderr)
 
     mon = f'{out}/mon.sock'
