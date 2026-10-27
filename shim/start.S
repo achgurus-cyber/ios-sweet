@@ -21,6 +21,29 @@ _head:
 _start:
 	msr	daifset, #0xf
 	mov	x19, x0			/* DTB pointer from ABL */
+	/*
+	 * Samsung LK/sboot can enter the kernel at EL2. The C shim and its
+	 * exception vectors are written for EL1, so normalize the execution
+	 * level before installing VBAR_EL1 or touching EL1 stack state.
+	 */
+	mrs	x1, CurrentEL
+	cmp	x1, #0x8			/* EL2 */
+	b.ne	1f
+	adr	x1, _stack_top
+	msr	sp_el1, x1
+	mrs	x1, hcr_el2
+	orr	x1, x1, #(1 << 31)		/* HCR_EL2.RW: AArch64 EL1 */
+	msr	hcr_el2, x1
+	mov	x1, #3			/* permit EL1 physical/virtual timer reads */
+	msr	cnthctl_el2, x1
+	msr	cntvoff_el2, xzr
+	mov	x1, #0x3c5			/* masked interrupts, EL1h */
+	msr	spsr_el2, x1
+	adr	x1, 1f
+	msr	elr_el2, x1
+	isb
+	eret
+1:
 	msr	spsel, #1
 	adr	x1, _stack_top
 	mov	sp, x1
