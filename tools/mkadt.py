@@ -47,6 +47,7 @@ A24_FB, A24_FB_SIZE = 0xfe144000, 0x1ebb000
 A24_FB_W, A24_FB_H = 1080, 2340
 A24_FB_STRIDE = A24_FB_W * 4  # provisional until boot framebuffer stride is read
 A24_UFS, A24_UFS_SIZE = 0x11270000, 0x2300
+A24_TIMEBASE = 13000000  # MT6789 armv8-timer clock-frequency is 13.0 MHz (0xc65d40)
 
 BOOT_MANIFEST_HASH = hashlib.sha384(b'sweet boot manifest').digest()
 
@@ -105,7 +106,7 @@ def build(seed=None, qemu=False, highmem=False, a24=False, ram_ranges=None):
     panic_base = phys_base + mem_size - PANIC_LOG_SIZE
     mem_size -= PANIC_LOG_SIZE
     if a24 and not qemu:
-        gicd, gicr, timebase = A24_GICD, A24_GICR, TIMEBASE
+        gicd, gicr, timebase = A24_GICD, A24_GICR, A24_TIMEBASE
         fb, fb_size, fb_w, fb_h, fb_stride = A24_FB, A24_FB_SIZE, A24_FB_W, A24_FB_H, A24_FB_STRIDE
         ufs_base, ufs_size = A24_UFS, A24_UFS_SIZE
     elif qemu:
@@ -186,7 +187,7 @@ def build(seed=None, qemu=False, highmem=False, a24=False, ram_ranges=None):
             ('l3-cache-id', u32(0)),     # shared L3
             ('state', cstr('running' if core == 0 else 'stopped')),
             ('timebase-frequency', u32(timebase)),
-            ('clock-frequency', u32(2304000000 if core >= 6 else 1804800000)),
+            ('clock-frequency', u32((2200000000 if core >= 6 else 2000000000) if a24 else (2304000000 if core >= 6 else 1804800000))),
             ('bus-frequency', u32(100000000)),
             ('memory-frequency', u32(1866000000)),
             ('peripheral-frequency', u32(timebase)),
