@@ -1,5 +1,31 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
+## UPDATE 2026-10-27 (Part 2) — MT6789 Hardware Refinement, Dynamic LK Framebuffer, SMP Analysis & EL0 Demand Paging
+
+1. **MT6789 Hardware Reference Clocks & CPU Topology (`1ca9df1`):**
+   - Decompiled Samsung Galaxy A24 stock DTB (`a24.dts`) extracted from prebuilt vendor table: confirmed architected ARM timer reference frequency is 13,000,000 Hz (`clock-frequency = <0xc65d40>`, driving `clk13m`).
+   - Updated `tools/mkadt.py`: defined `A24_TIMEBASE = 13000000` (correcting Snapdragon's 19.2 MHz which caused Mach absolute time calculations to run ~48% too fast).
+   - Set Helio G99 Cortex-A55 clock frequency to 2.0 GHz (`0x77359400`) and Cortex-A76 to 2.2 GHz (`0x83215600`).
+
+2. **Shim LK Bootloader Integration & Toolchain Robustness (`4352602`):**
+   - Discovered that MediaTek Little Kernel (LK) passes live framebuffer properties in `/chosen` (`atag,videolfb-fb_base_l`, `atag,videolfb-fb_base_h`, and `atag,videolfb-vramSize = 0x01be0000`).
+   - Adapted `shim/shim.c` and `shim/loader.c` to dynamically discover LK framebuffer base from DTB `/chosen` and update `con_fb` and `boot_args.Video.v_baseAddr` at runtime, falling back to static `PLAT_FB_BASE` (`0xfe144000`).
+   - Replaced `__builtin_strcmp` in `shim/ufs.c` with freestanding `streq` to eliminate external libc dependencies in `-nostdlib` mode.
+   - Fixed `build-a24.sh` to support LLVM-18 Clang (`--target=aarch64-linux-gnu`) and `ld.lld`, eliminating compiler-generated switch pointer tables and ensuring 0 ABS64 relocations in freestanding ELF. Built `out-a24/a24-shim.elf` (25,912 bytes) and `out-a24/a24-shim.Image` (253,952 bytes).
+
+3. **SMP Multi-Core Architectural Verification & Findings (`0b9ad70`):**
+   - Enabled parameterized SMP support via `--smp` in `tools/mkadt.py` and `tools/qemu-sweet.py`.
+   - Identified architectural difference between physical MT6789 hardware and QEMU virt:
+     * Real MT6789 hardware encodes 8 cores in MPIDR `Aff1` (`0x000..0x700`, `Aff0 = 0`) and services PSCI `CPU_ON` at EL3 via `smc #0`.
+     * QEMU `-M virt` allocates cores sequentially in `Aff0` (`0x0..0xf`, `Aff1 = 0`) and services PSCI at EL2 via `hvc #0`.
+     * Tested HVC substitution in QEMU: confirmed PSCI handler successfully intercepts `CPU_ON` and returns `PSCI_INVALID_PARAMETERS` (-2) because target MPIDR `0x100` does not exist in QEMU virt's Aff0 map. Confirmed XNU SMP bring-up logic is physically tailored to real MediaTek TrustZone topology.
+
+4. **EL0 Userspace Demand Paging Validation (`2e7dfa5`):**
+   - Extended `tools/sweet-init.S` with Apple XNU `SYS_mmap` (syscall 197) and anonymous memory allocation (`MAP_ANON | MAP_PRIVATE`, `PROT_READ | PROT_WRITE`).
+   - Packaged and executed via QEMU virt: verified that PID 1 triggered a Translation Fault at EL0 on memory store, XNU kernel demand-paging (`vm_fault` -> `pmap_enter`) successfully allocated physical 16 KiB pages and updated TTBR0_EL1, and userspace verified memory integrity, outputting:
+     `SWEET init: userspace mmap 16KB anon page PASSED`
+     followed by continuous heartbeat execution.
+
 ## UPDATE 2026-10-27 — MILESTONE: First XNU A24 Host-Side Boot to Userspace PID 1
 
 - **Host Testing Milestone (`9b12e80`):**
