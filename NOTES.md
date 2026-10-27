@@ -1,5 +1,12 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
+## HANDOFF 2026-10-27 — D22AP product tree restored locally
+
+- Installed the official `blacktop/ipsw` Windows CLI v3.1.739 outside the repository and verified the ZIP SHA-256 against the GitHub Releases API (`43d311cf87ffab0617845b10fbf45d38518d63cb09484fd00d30da23b21d8a79`).
+- Used its remote-range extraction against Apple's CDN IPSW for iPhone X / iOS 16.7.16 (20H392) to extract D22AP and D221AP DeviceTrees without waiting for the full archive. The D22AP raw ADT is 186,084 bytes, SHA-256 `9e670987c80493bd69aba7be62e3179c04663324d9249b0973675baac175dbf1`; D221AP is kept separately. Both are outside Git; D22AP is copied to ignored `research/ipsw-x/d22ap.adt`, which is the path `tools/mkadt.py` already expects.
+- The existing ADT parser now finds 61 `/product` properties from the D22AP tree instead of warning that it is absent. This improves the generated Apple-facing device identity but does not establish SpringBoard or physical A24 boot.
+- Full IPSW download is still running to `D:\CodexSamsungRootBuild\firmware-ios\iPhone10,3-iOS16.7.16-20H392.ipsw`; expected SHA-256 is `ece1194f7e233e9109c5790a8d23a4564a10a254e15ec5b09978a343265568fb`. ADB currently sees no online device. No phone was written or rebooted.
+
 ## HANDOFF 2026-10-27 — A24 live-map capture helper
 
 - Added `tools/collect-a24-live-map.py` and `docs/A24-LIVE-MAP-CAPTURE.md`. The helper is read-only: it requires exactly one authorized ADB device reporting `SM-A245F`, then saves selected boot properties and attempts to capture `/sys/firmware/fdt` and `/proc/iomem` outside the repository. It neither roots nor reboots the phone and records no serial number.
