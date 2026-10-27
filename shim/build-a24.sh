@@ -9,7 +9,9 @@ if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
 	OBJCOPY=${OBJCOPY:-aarch64-linux-gnu-objcopy}
 	READELF=${READELF:-aarch64-linux-gnu-readelf}
 	NM=${NM:-aarch64-linux-gnu-nm}
-	LD_CMD=("$CC" -static -T shim.ld -Wl,--build-id=none -Wl,--no-warn-rwx-segments -Wl,-N)
+	# This is a freestanding image with its own _start; do not let the GCC
+	# driver inject hosted crt objects or libc into the bare-metal link.
+	LD_CMD=("$CC" -nostdlib -static -T shim.ld -Wl,--build-id=none -Wl,--no-warn-rwx-segments -Wl,-N)
 elif command -v /usr/lib/llvm-18/bin/clang >/dev/null 2>&1; then
 	CC=${CC:-"/usr/lib/llvm-18/bin/clang --target=aarch64-linux-gnu"}
 	OBJCOPY=${OBJCOPY:-/usr/lib/llvm-18/bin/llvm-objcopy}
