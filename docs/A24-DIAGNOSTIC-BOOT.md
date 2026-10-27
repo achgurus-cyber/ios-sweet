@@ -14,14 +14,14 @@ The official DYG1 vendor FDT identifies the SoC PMIC wrapper at `0x10026000` and
 
 ## Latest offline candidate (not device-tested)
 
-- Path: `out-a24/a24-diagnostic-oneui7-el1handoff-untested.tar.md5` (generated and ignored by git)
+- Path: `D:\CodexSamsungRootBuild\A24-Diagnostic-Candidate-20261027\a24-diagnostic-oneui7-boot.tar.md5` (generated outside git)
 - Source boot partition: decoded from the official One UI 7 SEK AP package for `SM-A245F`
 - TAR member: `boot.img`, exactly 64 MiB
 - Android header: v4; stock Samsung marker and AVB footer retained in place
 - Shim: ARM64 Linux Image, 180,224 bytes
 - Initramfs: 46-byte gzip containing an empty `newc` archive
 - Odin TAR MD5: verified by `samloader verify-md5`
-- Package SHA-256: `6763e59270a735f2653f03ebef88c42bcc2cb4ef814f2ed3f693e5dba0ee6981`
+- Package SHA-256: `e51e1564f276f875b75e5a7f8333056121b9a6095699f54604635cf6695da74b`
 - TAR length is 512-byte aligned; footer uses the official-style `MD5␠␠filename.tar` layout and was independently re-calculated.
 - The A24 first-stage path parks immediately after reporting framebuffer/DTB info; caught exceptions also park instead of invoking reset. This removes the earlier intentional reset and avoids unvalidated MMU/GIC/PSCI operations. The package footer MD5, TAR alignment, and match between Odin output basename and embedded TAR filename were independently recalculated. The candidate has not yet been retried in Odin or booted on hardware. Hardware watchdog, framebuffer validity, bootloader acceptance, and physical entry remain unverified.
 
