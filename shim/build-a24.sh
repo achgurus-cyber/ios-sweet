@@ -24,6 +24,19 @@ else
 fi
 
 CFLAGS="-DPLATFORM_A24 -O2 -ffreestanding -nostdlib -fno-pic -mgeneral-regs-only -mstrict-align -fno-stack-protector -Wall -Wextra"
+case "${A24_MODE:-diagnostic}" in
+	diagnostic)
+		CFLAGS="$CFLAGS -DA24_DIAGNOSTIC_ONLY"
+		SHIM_STEM=a24-shim
+		;;
+	xnu)
+		SHIM_STEM=a24-shim-xnu
+		;;
+	*)
+		echo "usage: A24_MODE=diagnostic|xnu $0" >&2
+		exit 2
+		;;
+esac
 mkdir -p out-a24
 
 for f in start.S shim.c console.c mmu.c fdt.c loader.c ufs.c; do
@@ -35,16 +48,16 @@ abs=$($READELF -r out-a24/shim.o out-a24/console.o out-a24/mmu.o out-a24/fdt.o o
 
 "${LD_CMD[@]}" \
 	out-a24/start.o out-a24/shim.o out-a24/console.o out-a24/mmu.o out-a24/fdt.o out-a24/loader.o out-a24/ufs.o \
-	-o out-a24/a24-shim.elf
+	-o "out-a24/${SHIM_STEM}.elf"
 
-tmp_img="/tmp/a24-shim.$$.Image"
-$OBJCOPY -O binary out-a24/a24-shim.elf "$tmp_img"
-cp "$tmp_img" out-a24/a24-shim.Image
+tmp_img="/tmp/${SHIM_STEM}.$$.Image"
+$OBJCOPY -O binary "out-a24/${SHIM_STEM}.elf" "$tmp_img"
+cp "$tmp_img" "out-a24/${SHIM_STEM}.Image"
 rm -f "$tmp_img"
 
-hex=$($NM out-a24/a24-shim.elf | awk '$3=="_end"{print $1}')
+hex=$($NM "out-a24/${SHIM_STEM}.elf" | awk '$3=="_end"{print $1}')
 size=$((16#$hex))
-truncate -s "$size" out-a24/a24-shim.Image
+truncate -s "$size" "out-a24/${SHIM_STEM}.Image"
 
-echo "Built experimental A24 shim core (not an Odin image):"
-ls -l out-a24/a24-shim.elf out-a24/a24-shim.Image
+echo "Built experimental A24 ${A24_MODE:-diagnostic} shim core (not an Odin image):"
+ls -l "out-a24/${SHIM_STEM}.elf" "out-a24/${SHIM_STEM}.Image"

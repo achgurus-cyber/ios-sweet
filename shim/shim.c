@@ -405,6 +405,7 @@ void shim_main(uint64_t dtb)
 #endif
 	con_clear(RED);
 #ifdef PLATFORM_A24
+#if defined(A24_DIAGNOSTIC_ONLY)
 	con_str("A24 TEST", "shim entry reached");
 	con_hex("DTB", dtb);
 	if (dtb && __builtin_bswap32(rd32(dtb)) == 0xd00dfeed) {
@@ -424,6 +425,9 @@ void shim_main(uint64_t dtb)
 	con_str("SAFE", "MMU GIC PSCI untouched");
 	con_str("RESULT", "parked for photo");
 	park();
+#else
+	con_str("SHIM", "A24 experimental XNU loader");
+#endif
 #else
 	con_str("SHIM", "sweet milestone 4: xnu loader");
 #endif

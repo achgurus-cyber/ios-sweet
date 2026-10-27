@@ -2,6 +2,8 @@
 
 The offline builder `tools/mk-a24-diagnostic-odin.py` creates an experimental Odin `boot.tar.md5` using the matching SM-A245F stock boot partition and the A24 shim. The current handoff build is based on One UI 7 `A245FXXS9DYG1` / SEK.
 
+`shim/build-a24.sh` now has separate `A24_MODE=diagnostic` and `A24_MODE=xnu` builds. The diagnostic mode parks before MMU/GIC/PSCI. The XNU mode retains the payload loader; caught shim exceptions park on-screen instead of deliberately resetting. The offline generic Android-v4 XNU wrapper is `out-a24/a24-xnu-boot-current.img` (16,846,848 bytes, SHA-256 `f5d42f98a03cabfe514d5be6824af73d909f32307a88013ff22983f3985e41c5`). It still contains a QEMU-derived A24 memory map and is not a physical-device or Odin-ready image.
+
 The image contains the shim and a valid empty initramfs only. It contains no XNU payload and no Android userspace. The current first-stage diagnostic build is intentionally minimal: if entered, it reports the shim entry, DTB/FDT validity and LK framebuffer properties, then parks. It does not switch the MMU, access GIC registers, or issue PSCI calls. This behavior has only been reasoned from source; it has not been observed on a physical A24.
 
 ## Current artifact
