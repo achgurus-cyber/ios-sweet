@@ -84,7 +84,7 @@ def node(name, props=(), children=()):
     return n
 
 
-def build(seed=None, qemu=False, highmem=False, a24=False, ram_ranges=None):
+def build(seed=None, qemu=False, highmem=False, a24=False, ram_ranges=None, smp=None):
     """Build a target ADT. A24 requires vetted RAM ranges (base, size) tuples."""
     if a24 and not ram_ranges:
         raise SystemExit('A24 requires one or more vetted --ram-range BASE:SIZE values')
@@ -168,9 +168,10 @@ def build(seed=None, qemu=False, highmem=False, a24=False, ram_ranges=None):
     # SWEET/A24 SMP: all eight cores in physical-core order (0-5 Cortex-A55,
     # 6-7 Cortex-A76), one scheduler cluster for now. The kernel defaults to
     # one CPU and uses cpus=N to select an initial prefix (N <= 8).
-    # QEMU retains its original single-CPU tree: its MPIDRs differ from phones.
+    # QEMU defaults to single-CPU tree unless --smp is passed.
+    num_cpus = smp if smp is not None else (1 if qemu else 8)
     cpu_nodes = []
-    for core in range(1 if qemu else 8):
+    for core in range(num_cpus):
         cpu_nodes.append(node(f'cpu{core}', [
             ph(),
             ('device_type', cstr('cpu')),
@@ -293,15 +294,21 @@ if __name__ == '__main__':
         raise SystemExit('usage: mkadt.py OUT.adt [--dump] [--qemu] [--highmem] [--a24 --ram-range BASE:SIZE]')
     out = args[0]
     ram_ranges = []
+    smp = None
     for i, arg in enumerate(args):
-        if arg == '--ram-range':
+        if arg == '--smp':
+            try:
+                smp = int(args[i + 1])
+            except (IndexError, ValueError):
+                raise SystemExit('--smp must be an integer, e.g. --smp 2')
+        elif arg == '--ram-range':
             try:
                 base, size = args[i + 1].split(':', 1)
                 ram_ranges.append((int(base, 0), int(size, 0)))
             except (IndexError, ValueError):
                 raise SystemExit('--ram-range must be BASE:SIZE, e.g. 0x80000000:0x10000000')
     root = build(qemu='--qemu' in args, highmem='--highmem' in args,
-                 a24='--a24' in args, ram_ranges=ram_ranges)
+                 a24='--a24' in args, ram_ranges=ram_ranges, smp=smp)
     blob = adt.serialize(root)
     open(out, 'wb').write(blob)
     if '--dump' in args:
