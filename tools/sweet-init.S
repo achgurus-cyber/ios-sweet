@@ -14,7 +14,10 @@
 #define SYS_open	5
 #define SYS_getpid	20
 #define SYS_select	93
+#define SYS_mmap	197
 #define O_RDWR		2
+#define PROT_RW		3
+#define MAP_ANON_PRIV	0x1002
 
 	.text
 	.globl	_start
@@ -54,6 +57,38 @@ _start:
 	add	sp, sp, #16
 
 	adr	x1, hello_tail
+	adr	x2, mmap_ok_msg
+	sub	x2, x2, x1
+	bl	write_console
+
+	/* Verify EL0 userspace virtual memory (mmap + demand paging) */
+	mov	x0, #0
+	mov	x1, #0x4000		/* 16 KiB page */
+	mov	x2, #PROT_RW		/* PROT_READ | PROT_WRITE */
+	mov	x3, #MAP_ANON_PRIV	/* MAP_ANON | MAP_PRIVATE */
+	mov	x4, #-1		/* fd = -1 */
+	mov	x5, #0		/* offset = 0 */
+	mov	x16, #SYS_mmap
+	svc	#0x80
+	b.cs	mmap_failed
+	mov	x20, x0
+
+	/* Trigger translation fault: store and verify pattern */
+	movz	x21, #0x4554		/* 'ET' */
+	movk	x21, #0x5357, lsl #16	/* 'SW' */
+	str	x21, [x20]
+	ldr	x22, [x20]
+	cmp	x21, x22
+	b.ne	mmap_failed
+
+	adr	x1, mmap_ok_msg
+	adr	x2, mmap_fail_msg
+	sub	x2, x2, x1
+	bl	write_console
+	b	tick
+
+mmap_failed:
+	adr	x1, mmap_fail_msg
 	adr	x2, alive
 	sub	x2, x2, x1
 	bl	write_console
@@ -94,6 +129,10 @@ hello:
 	.ascii	"\n*** SWEET userspace: init running as PID "
 hello_tail:
 	.ascii	" ***\n"
+mmap_ok_msg:
+	.ascii	"SWEET init: userspace mmap 16KB anon page PASSED\n"
+mmap_fail_msg:
+	.ascii	"SWEET init: userspace mmap FAILED\n"
 alive:
 	.ascii	"SWEET init: still alive\n"
 alive_end:
