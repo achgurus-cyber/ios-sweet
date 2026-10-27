@@ -278,6 +278,8 @@ def main():
     ap.add_argument('--hmp', action='append', default=[], help='extra monitor command run after stop (repeatable), e.g. "x /8gx 0xfffffe..."')
     ap.add_argument('--cpu', default='cortex-a76', help='QEMU CPU model (default: cortex-a76)')
     ap.add_argument('--smp', default='1', help='SMP CPU count or topology (e.g. 2 or 2,clusters=2,cores=1; default: 1)')
+    ap.add_argument('--tcg-thread', choices=('single', 'multi'), default='single',
+                    help='TCG execution mode; multi can improve SMP guest throughput')
     ap.add_argument('--kernel', help='matching unstripped kernel, for exact framebuffer text decoding (uses llvm-nm)')
     ap.add_argument('--fail-on-panic', action='store_true', help='exit 2 for a visible panic, 3 for incomplete/blank decoding; requires --kernel')
     ap.add_argument('--live-serial', action='store_true', help='stream serial console output to stdout in real time')
@@ -330,7 +332,8 @@ def main():
     smp_arg = str(a.smp)
     if smp_arg.isdigit() and int(smp_arg) > 1:
         smp_arg = f'{smp_arg},clusters={smp_arg},cores=1'
-    cmd = ['qemu-system-aarch64', '-object', f'memory-backend-file,id=mem,size={ram_gib}G,mem-path={out}/ram.bin,share=on',
+    cmd = ['qemu-system-aarch64', '-accel', f'tcg,thread={a.tcg_thread}',
+           '-object', f'memory-backend-file,id=mem,size={ram_gib}G,mem-path={out}/ram.bin,share=on',
            '-M', 'virt,gic-version=3,memory-backend=mem', '-m', f'{ram_gib}G',
            '-cpu', a.cpu, '-smp', smp_arg,
            '-nographic', '-serial', f'file:{out}/serial.txt', '-qmp', f'unix:{mon},server,nowait',
