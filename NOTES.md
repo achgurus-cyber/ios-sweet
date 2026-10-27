@@ -1,5 +1,11 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
+## HANDOFF 2026-10-27 — A24 live-map capture helper
+
+- Added `tools/collect-a24-live-map.py` and `docs/A24-LIVE-MAP-CAPTURE.md`. The helper is read-only: it requires exactly one authorized ADB device reporting `SM-A245F`, then saves selected boot properties and attempts to capture `/sys/firmware/fdt` and `/proc/iomem` outside the repository. It neither roots nor reboots the phone and records no serial number.
+- This prepares the next safe data-collection step; it does **not** produce a RAM map yet. Android may deny access, and `/proc/iomem` alone is not sufficient to authorize kernel memory use. Any FDT must be decoded with reserved ranges and reviewed against the XNU payload/load address before a physical boot image can be prepared.
+- No device was contacted, no build or test was run, and no firmware/image was flashed for this change. Full iOS remains unavailable on A24: the project has host/QEMU PID-1 evidence only and still lacks a validated MTK storage path and physical boot.
+
 ## HANDOFF 2026-10-27 — Gemini report audit and refreshed offline image
 
 - User supplied Gemini's handoff report. Repository evidence still shows **host/QEMU validation only**: XNU reaches the tiny PID 1 in QEMU; no A24 physical boot has been observed. This is not a port of a usable iOS system yet.
