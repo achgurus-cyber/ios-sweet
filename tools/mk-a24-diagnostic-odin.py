@@ -68,8 +68,8 @@ def build(stock_path: Path, kernel_path: Path, output_path: Path) -> None:
     struct.pack_into("<II", stock, 8, len(kernel), len(ramdisk))
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    # Odin's MD5 footer covers the complete padded TAR plus a NUL separator.
-    # Keep the checksum line format used by Samsung packages; this is only
+    # Samsung's footer follows the padded TAR directly. Keep the checksum
+    # line format used by official packages (two spaces before the filename); this is only
     # transport integrity, not an AVB or bootloader signature.
     tar_bytes = io.BytesIO()
     with tarfile.open(fileobj=tar_bytes, mode="w", format=tarfile.USTAR_FORMAT) as tf:
@@ -78,8 +78,10 @@ def build(stock_path: Path, kernel_path: Path, output_path: Path) -> None:
         info.mode = 0o644
         info.mtime = 0
         tf.addfile(info, io.BytesIO(stock))
-    payload = tar_bytes.getvalue() + b"\0"
-    footer = f"{hashlib.md5(payload).hexdigest()} boot.img.tar\n".encode("ascii")
+    payload = tar_bytes.getvalue()
+    if len(payload) % 512:
+        raise SystemExit("TAR payload is not 512-byte aligned")
+    footer = f"{hashlib.md5(payload).hexdigest()}  a24-diagnostic-oneui7-boot.tar\n".encode("ascii")
     output_path.write_bytes(payload + footer)
     print(f"Wrote experimental diagnostic package: {output_path} ({output_path.stat().st_size} bytes)")
     print(f"SHA256: {hashlib.sha256(output_path.read_bytes()).hexdigest()}")

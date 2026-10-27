@@ -13,7 +13,8 @@ The image contains the shim and a valid empty initramfs only. It contains no XNU
 - Shim: ARM64 Linux Image, 249,856 bytes
 - Initramfs: 46-byte gzip containing an empty `newc` archive
 - Odin TAR MD5: verified by `samloader verify-md5`
-- Package SHA-256: `fb53ba0c62e48c57ea2b8d30f2bd31b4e5a00eabb21e6a8ff744d88a685b5674`
+- Package SHA-256: `57e35f0f73aa91f1b5a199ba1e4840a2086e5a4a2540dc1e38df51200d086578`
+- TAR length is 512-byte aligned; footer uses the official-style `MD5␠␠filename.tar` layout and was independently re-calculated.
 
 ## Limits and recovery
 
