@@ -99,7 +99,7 @@ static void delay_ms(unsigned ms)
 		;
 }
 
-static void __attribute__((noreturn)) reset(unsigned after_s)
+static void __attribute__((noreturn, unused)) reset(unsigned after_s)
 {
 	con_skip();
 	con_str("RESET", after_s > 20 ? "in 40s" : "in 20s");
@@ -113,6 +113,12 @@ static void __attribute__((noreturn)) reset(unsigned after_s)
 	smc(PSCI_SYSTEM_RESET, 0, 0, 0);
 	wr32(PSHOLD, 0);
 #endif
+	for (;;)
+		__asm__ volatile("wfe");
+}
+
+static void __attribute__((noreturn)) park(void)
+{
 	for (;;)
 		__asm__ volatile("wfe");
 }
@@ -164,7 +170,12 @@ void exc_handler(uint64_t slot, uint64_t *regs)
 	con_hex("X0", regs[0]);
 	con_hex("X1", regs[1]);
 	con_hex("X30", regs[29]);	/* stashed lr is just above the frame */
+#ifdef PLATFORM_A24
+	/* Preserve the crash screen instead of rebooting into this shim forever. */
+	park();
+#else
 	reset(40);
+#endif
 }
 
 /* ---- SMP ---- */
@@ -459,5 +470,10 @@ void shim_main(uint64_t dtb)
 	test_gic();
 
 	stage = "done";
+#ifdef PLATFORM_A24
+	con_str("RESULT", "diagnostics complete; halted");
+	park();
+#else
 	reset(40);
+#endif
 }

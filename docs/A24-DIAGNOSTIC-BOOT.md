@@ -13,8 +13,9 @@ The image contains the shim and a valid empty initramfs only. It contains no XNU
 - Shim: ARM64 Linux Image, 249,856 bytes
 - Initramfs: 46-byte gzip containing an empty `newc` archive
 - Odin TAR MD5: verified by `samloader verify-md5`
-- Package SHA-256: `57e35f0f73aa91f1b5a199ba1e4840a2086e5a4a2540dc1e38df51200d086578`
+- Package SHA-256: `73f684d2d253a3db688dd5361aa6e60b79071a5a9da8b7080f30e2918344932b`
 - TAR length is 512-byte aligned; footer uses the official-style `MD5␠␠filename.tar` layout and was independently re-calculated.
+- The A24 diagnostic path parks after its checks and on a caught exception instead of calling PSCI reset. This removes the earlier build's intentional 40-second reboot loop; hardware watchdog or an earlier boot-chain reset remains unverified.
 
 ## Limits and recovery
 
