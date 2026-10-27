@@ -1,11 +1,19 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
+## HANDOFF 2026-10-27 — official iOS 16.7.16 root image prepared
+
+- Downloaded Apple's iPhone X / iOS 16.7.16 (20H392) IPSW to `D:\CodexSamsungRootBuild\firmware-ios\iPhone10,3-iOS16.7.16-20H392.ipsw`; SHA-256 matched Apple's published build (`ece1194f7e233e9109c5790a8d23a4564a10a254e15ec5b09978a343265568fb`). Extracted D22AP OS, SystemOS and AppOS DMGs outside Git.
+- Built `D:\CodexSamsungRootBuild\firmware-ios\ios16.7.16-iphone-x-hfsroot.img` (16 GiB case-sensitive journaled HFS+). `fsck.hfsplus` repaired the volume and the follow-up read-only check reported it OK. Mounted read-only and confirmed both `/sbin/launchd` and `/System/Library/CoreServices/SpringBoard.app/SpringBoard` exist.
+- To build it, enabled HFS+ in a module compiled from the exact running WSL kernel source/config (`6.18.54.1-microsoft-standard-WSL2`) and loaded it in the current WSL session. This does not change the phone or install a custom WSL kernel.
+- **This is a prepared root filesystem, not a booted iOS system.** The A24 QEMU payload in this repo still reaches only the project's test PID 1; `tools/qemu-sweet.py` has no disk-root boot path. No SpringBoard/QEMU launch has been verified, and no A24-compatible storage driver or physical boot is validated. The next engineering task is a QEMU boot path that can mount this root and reach launchd; do not claim iOS is running until SpringBoard is observed.
+- No phone was contacted, rebooted or flashed during this work. IPSW, extracted Apple images, and the 16 GiB root image remain outside Git.
+
 ## HANDOFF 2026-10-27 — D22AP product tree restored locally
 
 - Installed the official `blacktop/ipsw` Windows CLI v3.1.739 outside the repository and verified the ZIP SHA-256 against the GitHub Releases API (`43d311cf87ffab0617845b10fbf45d38518d63cb09484fd00d30da23b21d8a79`).
 - Used its remote-range extraction against Apple's CDN IPSW for iPhone X / iOS 16.7.16 (20H392) to extract D22AP and D221AP DeviceTrees without waiting for the full archive. The D22AP raw ADT is 186,084 bytes, SHA-256 `9e670987c80493bd69aba7be62e3179c04663324d9249b0973675baac175dbf1`; D221AP is kept separately. Both are outside Git; D22AP is copied to ignored `research/ipsw-x/d22ap.adt`, which is the path `tools/mkadt.py` already expects.
 - The existing ADT parser now finds 61 `/product` properties from the D22AP tree instead of warning that it is absent. This improves the generated Apple-facing device identity but does not establish SpringBoard or physical A24 boot.
-- Full IPSW download is still running to `D:\CodexSamsungRootBuild\firmware-ios\iPhone10,3-iOS16.7.16-20H392.ipsw`; expected SHA-256 is `ece1194f7e233e9109c5790a8d23a4564a10a254e15ec5b09978a343265568fb`. ADB currently sees no online device. No phone was written or rebooted.
+- The full IPSW download completed and its SHA-256 matched the expected value above. ADB currently sees no online device. No phone was written or rebooted.
 
 ## HANDOFF 2026-10-27 — A24 live-map capture helper
 
