@@ -6,6 +6,10 @@ The offline builder `tools/mk-a24-diagnostic-odin.py` creates an experimental Od
 
 The image contains the shim and a valid empty initramfs only. It contains no XNU payload and no Android userspace. The current first-stage diagnostic build is intentionally minimal: if entered, it reports the shim entry, DTB/FDT validity and LK framebuffer properties, then parks. It does not switch the MMU, access GIC registers, or issue PSCI calls. This behavior has only been reasoned from source; it has not been observed on a physical A24.
 
+## Power-button behavior
+
+The official DYG1 vendor FDT identifies the SoC PMIC wrapper at `0x10026000` and an `mediatek,mt6366-keys` node. Its key configuration sets `mediatek,long-press-mode = <2>` and maps the PMIC `home` key to Linux keycode `0x73` (`KEY_VOLUMEUP`). The Linux PMIC-key binding defines mode 2 as the power key plus home key long-press shutdown. This is stock-kernel configuration, not proof that the setting is active when this shim replaces Linux. The shim currently has no MT6366/PWRAP key driver or safe software power-off path; do not claim that a short or long press of Power alone will shut down this image. Implement and validate MT6366/PWRAP access before adding single-key shutdown, rather than guessing PMIC registers.
+
 ## Current artifact
 
 - Path: `out-a24/a24-diagnostic-oneui7-boot.tar.md5` (generated and ignored by git)
