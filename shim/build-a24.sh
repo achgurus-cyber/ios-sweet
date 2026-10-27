@@ -4,9 +4,23 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-CC=${CC:-aarch64-linux-gnu-gcc}
-OBJCOPY=${OBJCOPY:-aarch64-linux-gnu-objcopy}
-READELF=${READELF:-aarch64-linux-gnu-readelf}
+if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
+	CC=${CC:-aarch64-linux-gnu-gcc}
+	OBJCOPY=${OBJCOPY:-aarch64-linux-gnu-objcopy}
+	READELF=${READELF:-aarch64-linux-gnu-readelf}
+	NM=${NM:-aarch64-linux-gnu-nm}
+	LD_CMD=("$CC" -static -T shim.ld -Wl,--build-id=none -Wl,--no-warn-rwx-segments -Wl,-N)
+elif command -v /usr/lib/llvm-18/bin/clang >/dev/null 2>&1; then
+	CC=${CC:-"/usr/lib/llvm-18/bin/clang --target=aarch64-linux-gnu"}
+	OBJCOPY=${OBJCOPY:-/usr/lib/llvm-18/bin/llvm-objcopy}
+	READELF=${READELF:-/usr/lib/llvm-18/bin/llvm-readelf}
+	NM=${NM:-/usr/lib/llvm-18/bin/llvm-nm}
+	LD_CMD=(/usr/lib/llvm-18/bin/ld.lld -T shim.ld --build-id=none -N)
+else
+	echo "error: neither aarch64-linux-gnu-gcc nor llvm-18 clang found" >&2
+	exit 1
+fi
+
 CFLAGS="-DPLATFORM_A24 -O2 -ffreestanding -nostdlib -fno-pic -mgeneral-regs-only -mstrict-align -fno-stack-protector -Wall -Wextra"
 mkdir -p out-a24
 
@@ -17,11 +31,16 @@ done
 abs=$($READELF -r out-a24/shim.o out-a24/console.o out-a24/mmu.o out-a24/fdt.o out-a24/loader.o out-a24/ufs.o | grep -c ABS64 || true)
 [ "$abs" = 0 ] || { echo "error: $abs absolute relocations in C objects" >&2; exit 1; }
 
-$CC $CFLAGS -static -T shim.ld -Wl,--build-id=none -Wl,--no-warn-rwx-segments -Wl,-N \
+"${LD_CMD[@]}" \
 	out-a24/start.o out-a24/shim.o out-a24/console.o out-a24/mmu.o out-a24/fdt.o out-a24/loader.o out-a24/ufs.o \
 	-o out-a24/a24-shim.elf
-$OBJCOPY -O binary out-a24/a24-shim.elf out-a24/a24-shim.Image
-hex=$(aarch64-linux-gnu-nm out-a24/a24-shim.elf | awk '$3=="_end"{print $1}')
+
+tmp_img="/tmp/a24-shim.$$.Image"
+$OBJCOPY -O binary out-a24/a24-shim.elf "$tmp_img"
+cp "$tmp_img" out-a24/a24-shim.Image
+rm -f "$tmp_img"
+
+hex=$($NM out-a24/a24-shim.elf | awk '$3=="_end"{print $1}')
 size=$((16#$hex))
 truncate -s "$size" out-a24/a24-shim.Image
 

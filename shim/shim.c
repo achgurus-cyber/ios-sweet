@@ -2,6 +2,7 @@
  * Platform MMIO addresses and timer IDs are selected by platform.h. */
 #include <stdint.h>
 #include "console.h"
+#include "fdt.h"
 #include "mmu.h"
 #include "loader.h"
 #include "ufs.h"
@@ -145,12 +146,15 @@ void exc_handler(uint64_t slot, uint64_t *regs)
 		return;
 	}
 	con_clear(BLUE);
-	switch (slot & 3) {
-	case 0: con_str("PANIC", "SYNC"); break;
-	case 1: con_str("PANIC", "IRQ"); break;
-	case 2: con_str("PANIC", "FIQ"); break;
-	default: con_str("PANIC", "SERROR"); break;
-	}
+	volatile int slot_type = (int)(slot & 3);
+	if (slot_type == 0)
+		con_str("PANIC", "SYNC");
+	else if (slot_type == 1)
+		con_str("PANIC", "IRQ");
+	else if (slot_type == 2)
+		con_str("PANIC", "FIQ");
+	else
+		con_str("PANIC", "SERROR");
 	con_hex2("SLOT", "n=", slot, "cpu=", rsr("mpidr_el1"));
 	con_str("STAGE", stage);
 	con_hex("ESR", rsr("esr_el1"));
@@ -379,6 +383,15 @@ void shim_main(uint64_t dtb)
 
 	/* An xnu payload in the ramdisk means: boot it (MMU stays off). */
 	stage = "loader";
+#ifdef PLATFORM_A24
+	uint64_t lk_fb = 0;
+	if (dtb && fdt_chosen_u64(dtb, "atag,videolfb-fb_base_l", &lk_fb) && lk_fb) {
+		uint64_t lk_fb_h = 0;
+		if (fdt_chosen_u64(dtb, "atag,videolfb-fb_base_h", &lk_fb_h))
+			lk_fb |= (lk_fb_h << 32);
+		con_fb = (volatile uint32_t *)(uintptr_t)lk_fb;
+	}
+#endif
 	con_clear(RED);
 #ifdef PLATFORM_A24
 	con_str("SHIM", "A24 experimental xnu loader");

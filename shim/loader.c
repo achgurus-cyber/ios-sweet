@@ -123,7 +123,17 @@ const char *loader_boot(uintptr_t dtb)
 	ba->physBase = p->phys_base;
 	ba->memSize = p->mem_size;
 	ba->topOfKernelData = top;
-	ba->Video.v_baseAddr = FB_BASE;
+	uint64_t fb_base = FB_BASE;
+#ifdef PLATFORM_A24
+	uint64_t lk_fb = 0;
+	if (dtb && fdt_chosen_u64(dtb, "atag,videolfb-fb_base_l", &lk_fb) && lk_fb) {
+		uint64_t lk_fb_h = 0;
+		if (fdt_chosen_u64(dtb, "atag,videolfb-fb_base_h", &lk_fb_h))
+			lk_fb |= (lk_fb_h << 32);
+		fb_base = lk_fb;
+	}
+#endif
+	ba->Video.v_baseAddr = fb_base;
 	ba->Video.v_display = 1;
 	ba->Video.v_rowBytes = FB_STRIDE;
 	ba->Video.v_width = FB_W;
