@@ -205,6 +205,22 @@ def build(seed=None, qemu=False, highmem=False, a24=False, ram_ranges=None, smp=
         ('reg', u64(gicd - SOC_BASE, (A24_GICD_SIZE if (a24 and not qemu) else GICD_SIZE),
                     gicr - SOC_BASE, (A24_GICR_SIZE if (a24 and not qemu) else GICR_SIZE))),
     ])
+    disp0 = node('disp0', [
+        ph(),
+        ('device_type', cstr('display-subsystem')),
+        ('compatible', cstr('sweet,display')),
+        ('canvas-width', u32(1080 if a24 else 1125)),
+        ('canvas-height', u32(2340 if a24 else 2436)),
+    ])
+    arm_io_children = [gic,
+        # No hardware: watchdogd checks IODeviceTree:/arm-io/wdt for no-pmu and
+        # otherwise crashes trying to set the PMU boot stage (customer builds
+        # ignore the -wdt_no_pmu boot-arg).
+        node('wdt', [ph(), ('no-pmu', u32(1))])]
+    # The physical A24 display is still unvalidated; expose the synthetic
+    # display only in QEMU so iOS userland can initialize its display manager.
+    if not a24 or qemu:
+        arm_io_children.append(disp0)
     arm_io = node('arm-io', [
         ph(),
         ('device_type', cstr('sweet-io')),
@@ -212,22 +228,7 @@ def build(seed=None, qemu=False, highmem=False, a24=False, ram_ranges=None, smp=
         ('#address-cells', u32(2)),
         ('#size-cells', u32(2)),
         ('ranges', u64(0, SOC_BASE, 0x100000000 - SOC_BASE)),
-    ], [gic,
-        # No hardware: watchdogd checks IODeviceTree:/arm-io/wdt for no-pmu and
-        # otherwise crashes trying to set the PMU boot stage (customer builds
-        # ignore the -wdt_no_pmu boot-arg).
-        node('wdt', [ph(), ('no-pmu', u32(1))]),
-        # Main display: IOMobileFramebuffer.framework counts /arm-io children
-        # with this device_type and reads the canvas size from the node
-        # (the presented iPhone X size, see SweetFramebuffer.cpp);
-        # the kernel's AppleCLCD matches the compatible string.
-        node('disp0', [
-            ph(),
-            ('device_type', cstr('display-subsystem')),
-            ('compatible', cstr('sweet,display')),
-            ('canvas-width', u32(1080 if a24 else 1125)),
-            ('canvas-height', u32(2340 if a24 else 2436)),
-        ])] if not a24 else [gic, node('wdt', [ph(), ('no-pmu', u32(1))])])
+    ], arm_io_children)
 
     fbcon = node('sweet-fbcon', [
         ph(),
