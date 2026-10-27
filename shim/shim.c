@@ -405,7 +405,25 @@ void shim_main(uint64_t dtb)
 #endif
 	con_clear(RED);
 #ifdef PLATFORM_A24
-	con_str("SHIM", "A24 experimental xnu loader");
+	con_str("A24 TEST", "shim entry reached");
+	con_hex("DTB", dtb);
+	if (dtb && __builtin_bswap32(rd32(dtb)) == 0xd00dfeed) {
+		uint64_t fb_lo = 0, fb_hi = 0, fb_size = 0;
+		con_str("DTB", "FDT magic valid");
+		if (fdt_chosen_u64(dtb, "atag,videolfb-fb_base_l", &fb_lo)) {
+			(void)fdt_chosen_u64(dtb, "atag,videolfb-fb_base_h", &fb_hi);
+			(void)fdt_chosen_u64(dtb, "atag,videolfb-vramSize", &fb_size);
+			con_hex("FB BASE", fb_lo | (fb_hi << 32));
+			con_hex("FB SIZE", fb_size);
+		} else {
+			con_str("FB", "LK address not found");
+		}
+	} else {
+		con_str("DTB", "FDT magic invalid");
+	}
+	con_str("SAFE", "MMU GIC PSCI untouched");
+	con_str("RESULT", "parked for photo");
+	park();
 #else
 	con_str("SHIM", "sweet milestone 4: xnu loader");
 #endif

@@ -2,7 +2,7 @@
 
 The offline builder `tools/mk-a24-diagnostic-odin.py` creates an experimental Odin `boot.tar.md5` using the matching SM-A245F stock boot partition and the A24 shim. The current handoff build is based on One UI 7 `A245FXXS9DYG1` / SEK.
 
-The image contains the shim and a valid empty initramfs only. It contains no XNU payload and no Android userspace. If the shim is entered, it should print its diagnostic screen, report that no XNU initrd exists, then continue through the existing MMU/GIC/PSCI diagnostic path. This behavior has only been reasoned from source; it has not been observed on a physical A24.
+The image contains the shim and a valid empty initramfs only. It contains no XNU payload and no Android userspace. The current first-stage diagnostic build is intentionally minimal: if entered, it reports the shim entry, DTB/FDT validity and LK framebuffer properties, then parks. It does not switch the MMU, access GIC registers, or issue PSCI calls. This behavior has only been reasoned from source; it has not been observed on a physical A24.
 
 ## Current artifact
 
@@ -10,12 +10,12 @@ The image contains the shim and a valid empty initramfs only. It contains no XNU
 - Source boot partition: decoded from the official One UI 7 SEK AP package for `SM-A245F`
 - TAR member: `boot.img`, exactly 64 MiB
 - Android header: v4; stock Samsung marker and AVB footer retained in place
-- Shim: ARM64 Linux Image, 249,856 bytes
+- Shim: ARM64 Linux Image, 180,224 bytes
 - Initramfs: 46-byte gzip containing an empty `newc` archive
 - Odin TAR MD5: verified by `samloader verify-md5`
-- Package SHA-256: `73f684d2d253a3db688dd5361aa6e60b79071a5a9da8b7080f30e2918344932b`
+- Package SHA-256: `aab880acac783c414c165f691a87d809d6a4c8feb05b131986fc6bbcf05938eb`
 - TAR length is 512-byte aligned; footer uses the official-style `MD5␠␠filename.tar` layout and was independently re-calculated.
-- The A24 diagnostic path parks after its checks and on a caught exception instead of calling PSCI reset. This removes the earlier build's intentional 40-second reboot loop; hardware watchdog or an earlier boot-chain reset remains unverified.
+- The A24 first-stage path parks immediately after reporting framebuffer/DTB info; caught exceptions also park instead of invoking reset. This removes the earlier intentional reset and avoids unvalidated MMU/GIC/PSCI operations. Hardware watchdog or an earlier boot-chain reset remains unverified.
 
 ## Limits and recovery
 
